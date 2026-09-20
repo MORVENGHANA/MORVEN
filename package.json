@@ -1,0 +1,9 @@
+{
+  "name": "morven",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node static-server.js",
+    "start": "node static-server.js"
+  }
+}
