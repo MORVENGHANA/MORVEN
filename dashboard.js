@@ -8,7 +8,7 @@ const cartClose = document.querySelector('.cart-close');
 const checkoutButton = document.querySelector('.checkout-button');
 const checkoutEmail = document.querySelector('.checkout-email-input');
 const checkoutStatus = document.querySelector('.checkout-status');
-const apiUrl = window.MORVEN_API_URL || 'http://localhost:4000';
+const apiUrl = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
 const deliveryFields = {
   name: document.querySelector('#delivery-name'),
   city: document.querySelector('#delivery-city'),

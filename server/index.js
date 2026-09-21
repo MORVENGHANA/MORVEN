@@ -30,6 +30,7 @@ const firestore = serviceAccountPath && fs.existsSync(serviceAccountPath)
   : null;
 
 const firebaseAuth = firestore ? getAuth() : null;
+const staticRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "build");
 
 function cleanCode(value = "") {
   return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
@@ -248,5 +249,9 @@ app.post("/api/verify", async (request, response) => {
 
   return response.json({ status: "authentic", product: item.product, scans: item.scans, message: "Authentic MORVEN piece." });
 });
+
+app.use(express.static(staticRoot));
+app.get("/admin", (_request, response) => response.sendFile(path.join(staticRoot, "admin.html")));
+app.get(/.*/, (_request, response) => response.sendFile(path.join(staticRoot, "index.html")));
 
 app.listen(port, () => console.log(`MORVEN verification API listening on ${port}`));

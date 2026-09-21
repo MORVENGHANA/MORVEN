@@ -36,9 +36,9 @@ PAYSTACK_CALLBACK_URL=https://morven.onrender.com/payment-success.html
 
 The cart sends validated items and the customer's receipt email to the API. The API initializes a GHS transaction in pesewas and redirects the customer to Paystack's hosted checkout. Never put `PAYSTACK_SECRET_KEY` in browser code or commit it to the repository.
 
-For Render, set `STOREFRONT_ORIGIN` and `APP_URL` to `https://morven.onrender.com`. The backend API still needs its own Render Web Service URL unless the Render service is configured to proxy API requests.
+For Render, set `STOREFRONT_ORIGIN` and `APP_URL` to `https://morven.onrender.com`. The storefront and backend run together in the same Render Web Service.
 
-Paystack webhook URL: `https://YOUR-BACKEND-SERVICE.onrender.com/api/payments/paystack/webhook`. Configure that URL in Paystack and keep the webhook secret as the same `PAYSTACK_SECRET_KEY` used by the backend. The endpoint verifies Paystack's `x-paystack-signature` before updating an order.
+Paystack webhook URL: `https://morven.onrender.com/api/payments/paystack/webhook`. Configure that URL in Paystack and keep the webhook secret as the same `PAYSTACK_SECRET_KEY` used by the backend. The endpoint verifies Paystack's `x-paystack-signature` before updating an order.
 
 ### Admin
 

@@ -10,7 +10,7 @@ const app = initializeApp({
   appId: '1:133394499575:web:d571d789aa23d6e0c1d0f2',
 });
 const auth = getAuth(app);
-const apiUrl = window.MORVEN_API_URL || 'http://localhost:4000';
+const apiUrl = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
 const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
 const status = document.querySelector('.admin-status');
 const grid = document.querySelector('.admin-grid');

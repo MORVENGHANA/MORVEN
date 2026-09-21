@@ -1,10 +1,7 @@
 services:
   - type: web
     name: morven
-    runtime: static
+    runtime: node
     buildCommand: npm run build
-    staticPublishPath: build
+    startCommand: npm start
     pullRequestPreviewsEnabled: false
-    envVars:
-      - key: MORVEN_API_URL
-        sync: false

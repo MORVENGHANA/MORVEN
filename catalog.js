@@ -1,4 +1,4 @@
-const catalogApi = window.MORVEN_API_URL || 'http://localhost:4000';
+const catalogApi = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
 
 function renderProductCard(product, dashboard) {
   const article = document.createElement('article');
