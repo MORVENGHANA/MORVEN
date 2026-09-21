@@ -21,7 +21,8 @@
         <p class="kicker blue">Package management</p><h2>Add a piece</h2>
         <label>Product name<input name="name" required placeholder="Studio Overshirt"></label>
         <label>Price in GH₵<input name="price" type="number" min="1" step="1" required placeholder="148"></label>
-        <label>Product picture<input name="image" type="file" accept="image/jpeg,image/png" required><small class="image-size-note">Image box: 8 x 10 in (20.3 x 25.4 cm). Upload 2400 x 3000 px at 300 DPI.</small></label>
+        <label>Picture 1 (front)<input name="image" type="file" accept="image/jpeg,image/png" required><small class="image-size-note">Each image: 8 x 10 in (20.3 x 25.4 cm). Upload 2400 x 3000 px at 300 DPI.</small></label>
+        <label>Picture 2 (back)<input name="imageBack" type="file" accept="image/jpeg,image/png" required></label>
         <label>Description<textarea name="description" rows="3" placeholder="Heavy cotton / Ink"></textarea></label>
         <button class="admin-action" type="submit">Publish item <span>↗</span></button>
         <button class="admin-cancel" type="button" hidden>Cancel edit</button>

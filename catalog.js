@@ -5,11 +5,36 @@ function renderProductCard(product, dashboard) {
   article.className = dashboard ? 'shop-product' : 'product';
   const image = document.createElement('div');
   image.className = `product-image product-${product.id}`;
-  if (product.imageUrl) {
+  const imageSources = [product.imageUrl, product.imageBackUrl].filter(Boolean);
+  if (imageSources.length) {
     image.classList.add('has-uploaded-image');
-    image.style.backgroundImage = `url(${product.imageUrl})`;
+    const track = document.createElement('div');
+    track.className = 'product-image-track';
+    imageSources.forEach((source, index) => {
+      const picture = document.createElement('img');
+      picture.alt = `${product.name} ${index === 0 ? 'front' : 'back'}`;
+      picture.className = 'product-image-slide';
+      picture.src = source;
+      track.append(picture);
+    });
+    image.append(track);
+    if (imageSources.length > 1) {
+      const previous = document.createElement('button');
+      previous.className = 'product-image-control previous'; previous.type = 'button'; previous.textContent = '‹'; previous.setAttribute('aria-label', 'Previous product image');
+      const next = document.createElement('button');
+      next.className = 'product-image-control next'; next.type = 'button'; next.textContent = '›'; next.setAttribute('aria-label', 'Next product image');
+      image.append(previous, next);
+      let activeIndex = 0;
+      const showImage = (nextIndex) => { activeIndex = (nextIndex + imageSources.length) % imageSources.length; track.style.transform = `translateX(-${activeIndex * 100}%)`; };
+      previous.addEventListener('click', () => showImage(activeIndex - 1));
+      next.addEventListener('click', () => showImage(activeIndex + 1));
+      let startX = 0;
+      image.addEventListener('pointerdown', (event) => { startX = event.clientX; image.setPointerCapture(event.pointerId); });
+      image.addEventListener('pointerup', (event) => { const distance = event.clientX - startX; if (Math.abs(distance) > 35) showImage(activeIndex + (distance < 0 ? 1 : -1)); });
+    }
+  } else {
+    image.innerHTML = '<div class="shape"></div>';
   }
-  image.innerHTML = '<div class="shape"></div>';
   const title = document.createElement('h2');
   title.textContent = product.name;
   const description = document.createElement('p');

@@ -35,7 +35,7 @@ const productImageUpload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (_request, file, callback) => callback(null, ["image/jpeg", "image/png"].includes(file.mimetype)),
 });
-const parseProductImage = (request, response, next) => productImageUpload.single("image")(request, response, (error) => {
+const parseProductImages = (request, response, next) => productImageUpload.fields([{ name: "image", maxCount: 1 }, { name: "imageBack", maxCount: 1 }])(request, response, (error) => {
   if (error) return response.status(400).json({ message: error.code === "LIMIT_FILE_SIZE" ? "Product pictures must be 750 KB or smaller." : "Upload a JPEG, JPG, or PNG product picture." });
   return next();
 });
@@ -191,19 +191,22 @@ app.get("/api/admin/products", requireAdmin, async (_request, response) => {
   }
 });
 
-app.post("/api/admin/products", requireAdmin, parseProductImage, async (request, response) => {
+app.post("/api/admin/products", requireAdmin, parseProductImages, async (request, response) => {
   const name = String(request.body?.name || "").trim();
   const price = Number(request.body?.price);
-  const imageUrl = request.file ? `data:${request.file.mimetype};base64,${request.file.buffer.toString("base64")}` : "";
+  const image = request.files?.image?.[0];
+  const imageBack = request.files?.imageBack?.[0];
+  const imageUrl = image ? `data:${image.mimetype};base64,${image.buffer.toString("base64")}` : "";
+  const imageBackUrl = imageBack ? `data:${imageBack.mimetype};base64,${imageBack.buffer.toString("base64")}` : "";
   const description = String(request.body?.description || "").trim();
   if (!name || !Number.isFinite(price) || price <= 0) return response.status(400).json({ message: "Product name and a positive price are required." });
-  if (!request.file) return response.status(400).json({ message: "Upload a JPEG, JPG, or PNG product picture." });
+  if (!image || !imageBack) return response.status(400).json({ message: "Upload both Picture 1 and Picture 2 as JPEG, JPG, or PNG files." });
   if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
-  const reference = await firestore.collection("products").add({ name, price, imageUrl, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
-  return response.status(201).json({ product: productRecord(reference.id, { name, price, imageUrl, description, active: true }) });
+  const reference = await firestore.collection("products").add({ name, price, imageUrl, imageBackUrl, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  return response.status(201).json({ product: productRecord(reference.id, { name, price, imageUrl, imageBackUrl, description, active: true }) });
 });
 
-app.put("/api/admin/products/:id", requireAdmin, parseProductImage, async (request, response) => {
+app.put("/api/admin/products/:id", requireAdmin, parseProductImages, async (request, response) => {
   if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
   const reference = firestore.collection("products").doc(request.params.id);
   const current = await reference.get();
@@ -213,7 +216,10 @@ app.put("/api/admin/products/:id", requireAdmin, parseProductImage, async (reque
   const description = String(request.body?.description || "").trim();
   if (!name || !Number.isFinite(price) || price <= 0) return response.status(400).json({ message: "Product name and a positive price are required." });
   const update = { name, price, description, updatedAt: FieldValue.serverTimestamp() };
-  if (request.file) update.imageUrl = `data:${request.file.mimetype};base64,${request.file.buffer.toString("base64")}`;
+  const image = request.files?.image?.[0];
+  const imageBack = request.files?.imageBack?.[0];
+  if (image) update.imageUrl = `data:${image.mimetype};base64,${image.buffer.toString("base64")}`;
+  if (imageBack) update.imageBackUrl = `data:${imageBack.mimetype};base64,${imageBack.buffer.toString("base64")}`;
   await reference.update(update);
   return response.json({ product: productRecord(reference.id, { ...current.data(), ...update, imageUrl: update.imageUrl || current.data().imageUrl }) });
 });

@@ -1,4 +1,5 @@
 .product-image { aspect-ratio:4/5; background-position:center; background-repeat:no-repeat; background-size:contain; height:auto; }.product-image.has-uploaded-image .shape { display:none; }
+.product-image-track { display:flex; height:100%; touch-action:pan-y; transition:transform .3s ease; width:100%; }.product-image-slide { flex:0 0 100%; height:100%; object-fit:contain; pointer-events:none; width:100%; }.product-image-control { align-items:center; background:rgba(8,27,67,.75); border:0; border-radius:50%; color:#fff; cursor:pointer; display:flex; font-size:24px; height:32px; justify-content:center; line-height:1; opacity:0; padding:0; position:absolute; top:calc(50% - 16px); transition:opacity .2s; width:32px; z-index:3; }.product-image:hover .product-image-control,.product-image:focus-within .product-image-control { opacity:1; }.product-image-control.previous { left:12px; }.product-image-control.next { right:12px; }
 .dashboard-page .menu-button { z-index:21; }
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import url('typography.css');

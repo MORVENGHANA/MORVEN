@@ -79,7 +79,9 @@ async function loadAdminData() {
       productForm.elements.price.value = product.price;
       productForm.elements.description.value = product.description || '';
       productForm.elements.image.value = '';
+      productForm.elements.imageBack.value = '';
       productForm.elements.image.required = false;
+      productForm.elements.imageBack.required = false;
       productForm.querySelector('.admin-action').innerHTML = 'Update item <span>↗</span>';
       cancelEdit.hidden = false;
       productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -140,6 +142,7 @@ function resetProductForm() {
   editingProductId = '';
   productForm.reset();
   productForm.elements.image.required = true;
+  productForm.elements.imageBack.required = true;
   productForm.querySelector('.admin-action').innerHTML = 'Publish item <span>↗</span>';
   cancelEdit.hidden = true;
 }
