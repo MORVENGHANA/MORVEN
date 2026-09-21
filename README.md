@@ -38,6 +38,8 @@ The cart sends validated items and the customer's receipt email to the API. The 
 
 For Render, set `STOREFRONT_ORIGIN` and `APP_URL` to `https://morven.onrender.com`. The backend API still needs its own Render Web Service URL unless the Render service is configured to proxy API requests.
 
+Paystack webhook URL: `https://YOUR-BACKEND-SERVICE.onrender.com/api/payments/paystack/webhook`. Configure that URL in Paystack and keep the webhook secret as the same `PAYSTACK_SECRET_KEY` used by the backend. The endpoint verifies Paystack's `x-paystack-signature` before updating an order.
+
 ### Admin
 
 Create the administrator account in Firebase Authentication using the approved administrator email, then set the password there. Set `ADMIN_EMAIL` to that same email in `server/.env`. The admin signs in through `login.html` and is redirected to `admin.html`, where products, users, and orders are managed. Admin API access is enforced with Firebase ID tokens on the server; the password is never stored in this project.

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "node:crypto";
 import cors from "cors";
 import express from "express";
 import fs from "node:fs";
@@ -19,7 +20,7 @@ const products = new Map([
 const adminEmail = (process.env.ADMIN_EMAIL || "fotsiemmanuel397@gmail.com").toLowerCase();
 
 app.use(cors({ origin: process.env.STOREFRONT_ORIGIN || "http://localhost:3000" }));
-app.use(express.json());
+app.use(express.json({ verify: (request, _response, buffer) => { request.rawBody = buffer; } }));
 
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_FILE
   ? path.resolve(path.dirname(fileURLToPath(import.meta.url)), process.env.FIREBASE_SERVICE_ACCOUNT_FILE)
@@ -65,6 +66,31 @@ async function requireAdmin(request, response, next) {
 }
 
 app.get("/health", (_request, response) => response.json({ service: "morven-verification", ok: true }));
+
+app.post("/api/payments/paystack/webhook", async (request, response) => {
+  const signature = request.headers["x-paystack-signature"];
+  const rawBody = request.rawBody || Buffer.from(JSON.stringify(request.body));
+  const expectedSignature = crypto.createHmac("sha512", process.env.PAYSTACK_SECRET_KEY || "").update(rawBody).digest("hex");
+  const receivedSignature = Buffer.from(String(signature || ""));
+  const expectedSignatureBuffer = Buffer.from(expectedSignature);
+  if (!signature || receivedSignature.length !== expectedSignatureBuffer.length || !crypto.timingSafeEqual(receivedSignature, expectedSignatureBuffer)) {
+    return response.status(401).json({ message: "Invalid webhook signature." });
+  }
+
+  const event = request.body;
+  const transaction = event?.data;
+  if (event?.event === "charge.success" && transaction?.reference && firestore) {
+    const orderReference = String(transaction.reference);
+    const orderRef = firestore.collection("orders").doc(orderReference);
+    const order = await orderRef.get();
+    const expectedAmount = order.exists ? Number(order.data().amount) * 100 : null;
+    if (expectedAmount !== null && Number(transaction.amount) !== expectedAmount) {
+      return response.status(400).json({ message: "Webhook amount does not match the order." });
+    }
+    await orderRef.set({ status: "success", paidAt: FieldValue.serverTimestamp(), paymentChannel: transaction.channel || null }, { merge: true });
+  }
+  return response.sendStatus(200);
+});
 
 app.get("/api/products", async (_request, response) => response.json({ products: await getProducts() }));
 
