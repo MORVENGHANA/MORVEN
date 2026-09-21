@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MORVEN administrator sign in.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="auth.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="auth-page admin-login-page">
+  <header class="site-header"><a class="logo" href="index.html"><img src="Images/MORVEN-white.png" alt="MORVEN"></a><a class="arrow-link" href="index.html">Back home ↙</a></header>
+  <main class="auth-layout">
+    <div class="auth-art"><span>MORVEN<br>CONTROL<br>ROOM.</span></div>
+    <form class="auth-card" id="admin-login-form">
+      <p class="kicker blue">Restricted access</p>
+      <h1>Admin<br><em>sign in.</em></h1>
+      <label>Email<input name="email" type="email" autocomplete="username" required placeholder="Administrator email"></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required placeholder="Password"></label>
+      <button class="button button-blue" type="submit">Enter portal <span>↗</span></button>
+      <p class="auth-message" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+  <script type="module" src="admin-login.js"></script>
+</body>
+</html>

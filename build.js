@@ -7,6 +7,8 @@ const files = [
   "admin.css",
   "admin.html",
   "admin.js",
+  "admin-login.html",
+  "admin-login.js",
   "auth.css",
   "auth.js",
   "cart.css",

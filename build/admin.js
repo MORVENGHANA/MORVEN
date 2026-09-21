@@ -11,6 +11,7 @@ const app = initializeApp({
 });
 const auth = getAuth(app);
 const apiUrl = window.MORVEN_API_URL || 'http://localhost:4000';
+const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
 const status = document.querySelector('.admin-status');
 const grid = document.querySelector('.admin-grid');
 let token = '';
@@ -57,7 +58,12 @@ document.querySelector('.product-form').addEventListener('submit', async (event)
 document.querySelector('.admin-signout').addEventListener('click', () => signOut(auth).then(() => { window.location.href = 'login.html'; }));
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = 'login.html'; return; }
+  if (!user) { window.location.href = 'admin-login.html'; return; }
+  if (user.email?.toLowerCase() !== ADMIN_EMAIL) {
+    await signOut(auth);
+    window.location.href = 'admin-login.html';
+    return;
+  }
   token = await user.getIdToken();
   try {
     await loadAdminData();
