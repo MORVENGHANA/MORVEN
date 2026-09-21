@@ -13,8 +13,16 @@ const auth = getAuth(app);
 const apiUrl = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
 const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
 const status = document.querySelector('.admin-status');
+const toast = document.querySelector('.admin-toast');
 const grid = document.querySelector('.admin-grid');
 let token = '';
+
+function showToast(message, isError = false) {
+  toast.textContent = message;
+  toast.classList.toggle('admin-toast-error', isError);
+  toast.hidden = false;
+  window.setTimeout(() => { toast.hidden = true; }, 4500);
+}
 
 async function api(path, options = {}) {
   const headers = { Authorization: `Bearer ${token}`, ...options.headers };
@@ -54,7 +62,20 @@ document.querySelector('.product-form').addEventListener('submit', async (event)
   event.preventDefault();
   const form = event.currentTarget;
   const data = new FormData(form);
-  try { await api('/api/admin/products', { method: 'POST', body: data }); form.reset(); status.textContent = 'Item published to the storefront.'; await loadAdminData(); } catch (error) { status.textContent = error.message; }
+  const submit = form.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    const { product } = await api('/api/admin/products', { method: 'POST', body: data });
+    form.reset();
+    status.textContent = `Signed in as ${auth.currentUser.email}.`;
+    showToast(`${product.name} was published successfully.`);
+    await loadAdminData();
+  } catch (error) {
+    status.textContent = error.message;
+    showToast(error.message, true);
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 document.querySelector('.admin-signout').addEventListener('click', () => signOut(auth).then(() => { window.location.href = 'login.html'; }));
@@ -73,6 +94,6 @@ onAuthStateChanged(auth, async (user) => {
     grid.hidden = false;
     status.textContent = `Signed in as ${user.email}.`;
   } catch (error) {
-    status.textContent = error.message.includes('Firestore') ? 'Admin data is temporarily unavailable. Enable Firestore to continue.' : error.message;
+    status.textContent = error.message.includes('services are not configured') ? 'Admin services are not configured. Add FIREBASE_SERVICE_ACCOUNT_JSON in Render.' : error.message.includes('Firestore') ? 'Admin data is temporarily unavailable. Enable Firestore to continue.' : error.message;
   }
 });

@@ -54,6 +54,7 @@ document.addEventListener('click', (event) => {
 cartItems?.addEventListener('click', (event) => {
   const button = event.target.closest('[data-cart-index]');
   if (!button) return;
+  event.stopPropagation();
   const index = Number(button.dataset.cartIndex);
   if (button.classList.contains('cart-increase')) cart[index].quantity += 1;
   if (button.classList.contains('cart-decrease')) cart[index].quantity = Math.max(0, cart[index].quantity - 1);
