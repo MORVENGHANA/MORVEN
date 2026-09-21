@@ -1,6 +1,6 @@
-import "dotenv/config";
 import crypto from "node:crypto";
 import cors from "cors";
+import dotenv from "dotenv";
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+
+dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), ".env") });
 
 const app = express();
 const port = process.env.PORT || 4000;

@@ -3,7 +3,7 @@ import { browserLocalPersistence, getAuth, onAuthStateChanged, setPersistence, s
 
 const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
 const firebaseApp = initializeApp({
-  apiKey: 'AIzaSyA55HjGrGN5BYB619fxIZYfmFccl71A',
+  apiKey: 'AIzaSyA55H9jGrGN5BYB619fxIZYfmFccl71jlA',
   authDomain: 'morven-1420a.firebaseapp.com',
   projectId: 'morven-1420a',
   storageBucket: 'morven-1420a.firebasestorage.app',
