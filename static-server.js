@@ -7,7 +7,7 @@ const port = Number(process.env.PORT || 3000);
 const types = { '.css': 'text/css', '.html': 'text/html', '.jpg': 'image/jpeg', '.js': 'text/javascript', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
 http.createServer((request, response) => {
-  const requestedPath = request.url.split('?')[0] === '/' ? '/dashboard.html' : request.url.split('?')[0] === '/admin' ? '/admin.html' : request.url.split('?')[0];
+  const requestedPath = request.url.split('?')[0] === '/' ? '/index.html' : request.url.split('?')[0] === '/admin' ? '/admin.html' : request.url.split('?')[0];
   const filePath = path.join(root, path.normalize(requestedPath));
   if (!filePath.startsWith(root)) {
     response.writeHead(403);
