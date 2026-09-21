@@ -221,7 +221,8 @@ app.put("/api/admin/products/:id", requireAdmin, parseProductImages, async (requ
   if (image) update.imageUrl = `data:${image.mimetype};base64,${image.buffer.toString("base64")}`;
   if (imageBack) update.imageBackUrl = `data:${imageBack.mimetype};base64,${imageBack.buffer.toString("base64")}`;
   await reference.update(update);
-  return response.json({ product: productRecord(reference.id, { ...current.data(), ...update, imageUrl: update.imageUrl || current.data().imageUrl }) });
+  const currentData = current.data();
+  return response.json({ product: productRecord(reference.id, { ...currentData, name, price, description, imageUrl: update.imageUrl || currentData.imageUrl, imageBackUrl: update.imageBackUrl || currentData.imageBackUrl }) });
 });
 
 app.delete("/api/admin/products/:id", requireAdmin, async (request, response) => {
@@ -424,6 +425,16 @@ app.get("/api/verify/:code", async (request, response) => {
   const item = snapshot.data();
   return response.json({ status: item.status === "active" ? "authentic" : "suspicious", product: item.product, scans: item.scans || 0 });
 });
+
+app.use((error, request, response, _next) => {
+  if (request.path.startsWith("/api/")) {
+    console.error(`API request failed: ${error.message}`);
+    return response.status(error.statusCode || 500).json({ message: error.message || "The server could not complete that request." });
+  }
+  return response.status(500).send("Internal server error.");
+});
+
+app.use("/api", (_request, response) => response.status(404).json({ message: "API endpoint not found." }));
 
 app.use(express.static(staticRoot));
 app.use(express.static(sourceRoot));

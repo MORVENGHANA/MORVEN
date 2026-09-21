@@ -34,7 +34,9 @@ async function api(path, options = {}) {
   const headers = { Authorization: `Bearer ${token}`, ...options.headers };
   if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   const response = await fetch(`${apiUrl}${path}`, { ...options, headers });
-  const data = response.status === 204 ? null : await response.json();
+  const responseText = response.status === 204 ? '' : await response.text();
+  let data = null;
+  try { data = responseText ? JSON.parse(responseText) : null; } catch { throw new Error(`Admin API returned ${response.status} HTML instead of JSON. Redeploy the latest server code.`); }
   if (!response.ok) throw new Error(data?.message || 'Admin request failed.');
   return data;
 }
