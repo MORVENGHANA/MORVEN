@@ -132,11 +132,15 @@ checkoutButton?.addEventListener('click', async () => {
       throw new Error(`Payment service returned an invalid response (${response.status}).`);
     }
     if (!response.ok) throw new Error(data.message || 'Could not start payment.');
-    if (data.accessCode && window.PaystackPop) {
+    const accessCode = data.accessCode || data.access_code;
+    const authorizationUrl = data.authorizationUrl || data.authorization_url;
+    if (accessCode && window.PaystackPop) {
       const popup = new window.PaystackPop();
-      popup.resumeTransaction(data.accessCode);
+      popup.resumeTransaction(accessCode);
+    } else if (authorizationUrl) {
+      window.location.href = authorizationUrl;
     } else {
-      window.location.href = data.authorizationUrl;
+      throw new Error(data.message || 'Paystack did not return a checkout link.');
     }
   } catch (error) {
     checkoutStatus.textContent = error.message;
