@@ -124,7 +124,13 @@ checkoutButton?.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     });
-    const data = await response.json();
+    const responseText = await response.text();
+    let data;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      throw new Error(`Payment service returned an invalid response (${response.status}).`);
+    }
     if (!response.ok) throw new Error(data.message || 'Could not start payment.');
     if (data.accessCode && window.PaystackPop) {
       const popup = new window.PaystackPop();
