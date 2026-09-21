@@ -27,8 +27,8 @@ authForm?.addEventListener('submit', async (event) => {
   const message = authForm.querySelector('.auth-message');
   const inputs = authForm.querySelectorAll('input');
   const isSignup = authForm.dataset.auth === 'signup';
-  const email = inputs[isSignup ? 1 : 0].value.trim();
-  const password = inputs[isSignup ? 2 : 1].value;
+  const email = inputs[isSignup ? 2 : 0].value.trim();
+  const password = inputs[isSignup ? 3 : 1].value;
 
   button.disabled = true;
   message.textContent = 'Connecting to the MORVEN archive...';
@@ -38,6 +38,13 @@ authForm?.addEventListener('submit', async (event) => {
     if (isSignup) {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(credential.user, { displayName: inputs[0].value.trim() });
+      const apiUrl = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
+      const profileResponse = await fetch(`${apiUrl}/api/profile`, {
+        body: JSON.stringify({ phone: inputs[1].value.trim() }),
+        headers: { Authorization: `Bearer ${await credential.user.getIdToken()}`, 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      if (!profileResponse.ok) throw new Error('Could not save your phone number.');
       message.textContent = 'Account created. Welcome to the archive.';
     } else {
       await signInWithEmailAndPassword(auth, email, password);

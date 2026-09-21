@@ -59,5 +59,6 @@ window.morvenAuthReady.then((user) => {
     window.location.replace('login.html');
     return;
   }
+  document.body.classList.add('dashboard-authorized');
   setAccountControls(user);
 });

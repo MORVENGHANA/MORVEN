@@ -150,6 +150,14 @@ app.post("/api/payments/paystack/webhook", async (request, response) => {
 
 app.get("/api/products", async (_request, response) => response.json({ products: await getProducts() }));
 
+app.post("/api/profile", requireUser, async (request, response) => {
+  const phone = String(request.body?.phone || "").trim();
+  if (!phone) return response.status(400).json({ message: "A phone number is required." });
+  if (!firestore) return response.status(503).json({ message: "User database is not configured." });
+  await firestore.collection("userProfiles").doc(request.user.uid).set({ phone, email: request.user.email || "", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return response.json({ phone });
+});
+
 app.get("/api/orders", requireUser, async (request, response) => {
   if (!firestore) return response.json({ orders: [] });
   try {
@@ -219,7 +227,11 @@ app.get("/api/admin/users", requireAdmin, async (_request, response) => {
   let page;
   do {
     page = await firebaseAuth.listUsers(1000, page?.pageToken);
-    users.push(...page.users.map((user) => ({ id: user.uid, name: user.displayName || "", email: user.email || "", phone: user.phoneNumber || "", createdAt: user.metadata.creationTime || "" })));
+    const listedUsers = await Promise.all(page.users.map(async (user) => {
+      const profile = await firestore.collection("userProfiles").doc(user.uid).get();
+      return { id: user.uid, name: user.displayName || "", email: user.email || "", phone: profile.exists ? profile.data().phone || "" : user.phoneNumber || "", createdAt: user.metadata.creationTime || "" };
+    }));
+    users.push(...listedUsers);
   } while (page.pageToken);
   return response.json({ users });
 });
@@ -376,7 +388,10 @@ app.post("/api/verify", async (request, response) => {
   if (firestore) {
     const snapshot = await firestore.collection("verificationCodes").doc(code).get();
     item = snapshot.exists ? { id: snapshot.id, ...snapshot.data() } : null;
-    if (item) await snapshot.ref.update({ scans: FieldValue.increment(1), lastScannedAt: FieldValue.serverTimestamp() });
+    if (item) {
+      item.scans = Number(item.scans || 0) + 1;
+      await snapshot.ref.update({ scans: FieldValue.increment(1), lastScannedAt: FieldValue.serverTimestamp() });
+    }
   } else {
     item = demoCodes.get(code);
     if (item) item.scans += 1;
@@ -386,6 +401,19 @@ app.post("/api/verify", async (request, response) => {
   if (item.status !== "active") return response.json({ status: "suspicious", message: "This code has been flagged for review." });
 
   return response.json({ status: "authentic", product: item.product, scans: item.scans, message: "Authentic MORVEN piece." });
+});
+
+app.get("/api/verify/:code", async (request, response) => {
+  const code = cleanCode(request.params.code);
+  if (!code) return response.status(400).json({ status: "invalid", message: "A product code is required." });
+  if (!firestore) {
+    const item = demoCodes.get(code);
+    return item ? response.json({ status: "authentic", product: item.product, scans: item.scans }) : response.status(404).json({ status: "suspicious", message: "We could not confirm this code." });
+  }
+  const snapshot = await firestore.collection("verificationCodes").doc(code).get();
+  if (!snapshot.exists) return response.status(404).json({ status: "suspicious", message: "We could not confirm this code." });
+  const item = snapshot.data();
+  return response.json({ status: item.status === "active" ? "authentic" : "suspicious", product: item.product, scans: item.scans || 0 });
 });
 
 app.use(express.static(staticRoot));
