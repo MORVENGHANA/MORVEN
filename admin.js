@@ -17,6 +17,8 @@ const status = document.querySelector('.admin-status');
 const toast = document.querySelector('.admin-toast');
 const grid = document.querySelector('.admin-grid');
 const productForm = document.querySelector('.product-form');
+const verificationForm = document.querySelector('.verification-form');
+const verificationProduct = document.querySelector('.verification-product');
 const cancelEdit = document.querySelector('.admin-cancel');
 let token = '';
 let editingProductId = '';
@@ -53,11 +55,17 @@ function deliveryCell(delivery = {}) {
   return element;
 }
 
+function orderStatus(value) {
+  return ORDER_STATUSES.includes(value) ? value : 'Pending';
+}
+
 async function loadAdminData() {
   const [{ products }, { users }, { orders }] = await Promise.all([api('/api/admin/products'), api('/api/admin/users'), api('/api/admin/orders')]);
   const productsTable = document.querySelector('.products-table');
   productsTable.replaceChildren();
+  verificationProduct.replaceChildren(new Option('Select a product', ''));
   products.forEach((product) => {
+    verificationProduct.append(new Option(product.name, product.name));
     const row = document.createElement('tr');
     row.append(cell(product.name), cell(`GH₵${product.price}`));
     const action = document.createElement('td');
@@ -86,22 +94,47 @@ async function loadAdminData() {
   const ordersTable = document.querySelector('.orders-table'); ordersTable.replaceChildren();
   orders.forEach((order) => {
     const row = document.createElement('tr');
-    row.append(cell(order.orderId || order.reference || order.id), cell(order.email), cell(`GH₵${order.amount || 0}`), deliveryCell(order.delivery), cell(order.status || 'Pending'));
-    const action = document.createElement('td');
+    const currentStatus = orderStatus(order.status);
+    row.append(cell(order.orderId || order.reference || order.id), cell(order.email), cell(`GH₵${order.amount || 0}`), deliveryCell(order.delivery));
     const select = document.createElement('select');
     select.className = 'order-status-select';
     ORDER_STATUSES.forEach((statusOption) => {
       const option = document.createElement('option');
-      option.value = statusOption; option.textContent = statusOption; option.selected = statusOption === (order.status || 'Pending');
+      option.value = statusOption; option.textContent = statusOption; option.selected = statusOption === currentStatus;
       select.append(option);
     });
     select.addEventListener('change', async () => {
       try { await api(`/api/admin/orders/${encodeURIComponent(order.reference || order.id)}/status`, { method: 'PUT', body: JSON.stringify({ status: select.value }) }); showToast('Order status updated.'); }
-      catch (error) { showToast(error.message, true); select.value = order.status || 'Pending'; }
+      catch (error) { showToast(error.message, true); select.value = currentStatus; }
     });
-    action.append(select); row.append(action); ordersTable.append(row);
+    const statusCell = document.createElement('td');
+    statusCell.append(select);
+    row.append(statusCell); ordersTable.append(row);
   });
 }
+
+verificationForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = verificationForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const response = await fetch(`${apiUrl}/api/admin/verification-codes/pdf`, { body: JSON.stringify({ product: verificationProduct.value }), headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, method: 'POST' });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Unable to generate verification codes.');
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = 'morven-verification-codes.pdf'; link.click();
+    URL.revokeObjectURL(url);
+    showToast('20 verification codes were generated.');
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
 
 function resetProductForm() {
   editingProductId = '';

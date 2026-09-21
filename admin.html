@@ -21,14 +21,20 @@
         <p class="kicker blue">Package management</p><h2>Add a piece</h2>
         <label>Product name<input name="name" required placeholder="Studio Overshirt"></label>
         <label>Price in GH₵<input name="price" type="number" min="1" step="1" required placeholder="148"></label>
-        <label>Product picture<input name="image" type="file" accept="image/jpeg,image/png" required></label>
+        <label>Product picture<input name="image" type="file" accept="image/jpeg,image/png" required><small class="image-size-note">Image box: 8 x 10 in (20.3 x 25.4 cm). Upload 2400 x 3000 px at 300 DPI.</small></label>
         <label>Description<textarea name="description" rows="3" placeholder="Heavy cotton / Ink"></textarea></label>
         <button class="admin-action" type="submit">Publish item <span>↗</span></button>
         <button class="admin-cancel" type="button" hidden>Cancel edit</button>
       </form>
       <section class="admin-card"><p class="kicker blue">Live catalog</p><h2>Packages</h2><div class="admin-table-wrap"><table><thead><tr><th>Item</th><th>Price</th><th></th></tr></thead><tbody class="products-table"></tbody></table></div></section>
+      <form class="admin-card verification-form">
+        <p class="kicker blue">Product authenticity</p><h2>Print codes</h2>
+        <label>Product<select name="product" class="verification-product" required><option value="">Select a product</option></select></label>
+        <p class="admin-help">Creates 20 unique codes with QR labels in a two-column PDF.</p>
+        <button class="admin-action" type="submit">Generate PDF <span>↗</span></button>
+      </form>
       <section class="admin-card admin-wide"><p class="kicker blue">Customers</p><h2>Users</h2><div class="admin-table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th></tr></thead><tbody class="users-table"></tbody></table></div></section>
-      <section class="admin-card admin-wide"><p class="kicker blue">Fulfillment</p><h2>Orders</h2><div class="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Delivery details</th><th>Status</th><th>Update</th></tr></thead><tbody class="orders-table"></tbody></table></div></section>
+      <section class="admin-card admin-wide"><p class="kicker blue">Fulfillment</p><h2>Orders</h2><div class="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Delivery details</th><th>Status</th></tr></thead><tbody class="orders-table"></tbody></table></div></section>
     </section>
   </main>
   <script type="module" src="admin.js"></script>

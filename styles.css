@@ -1,3 +1,5 @@
+.product-image { aspect-ratio:4/5; background-position:center; background-repeat:no-repeat; background-size:contain; height:auto; }.product-image.has-uploaded-image .shape { display:none; }
+.dashboard-page .menu-button { z-index:21; }
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import url('typography.css');
 

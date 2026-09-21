@@ -5,6 +5,8 @@ import express from "express";
 import fs from "node:fs";
 import multer from "multer";
 import path from "node:path";
+import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -23,6 +25,10 @@ const products = new Map([
 const adminEmail = (process.env.ADMIN_EMAIL || "fotsiemmanuel397@gmail.com").toLowerCase();
 const firebaseProjectId = "morven-1420a";
 const orderStatuses = ["Pending", "Accepted", "Order is being Prepared", "On its way to be Delivered", "Delivered"];
+
+function normalizedOrderStatus(value) {
+  return orderStatuses.includes(value) ? value : "Pending";
+}
 const pendingOrders = new Map();
 const productImageUpload = multer({
   limits: { fileSize: 750 * 1024 },
@@ -149,7 +155,7 @@ app.get("/api/orders", requireUser, async (request, response) => {
   try {
     const snapshot = await firestore.collection("orders").where("userId", "==", request.user.uid).get();
     const orders = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .map((doc) => ({ id: doc.id, ...doc.data(), status: normalizedOrderStatus(doc.data().status) }))
       .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
     return response.json({ orders });
   } catch {
@@ -222,11 +228,38 @@ app.get("/api/admin/orders", requireAdmin, async (_request, response) => {
   if (!firestore) return response.json({ orders: [] });
   try {
     const snapshot = await firestore.collection("orders").orderBy("createdAt", "desc").get();
-    return response.json({ orders: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+    return response.json({ orders: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), status: normalizedOrderStatus(doc.data().status) })) });
   } catch (error) {
     console.error("Order database unavailable.");
     return response.status(503).json({ message: "Order management is temporarily unavailable. Enable Firestore to view orders." });
   }
+});
+
+app.post("/api/admin/verification-codes/pdf", requireAdmin, async (request, response) => {
+  if (!firestore) return response.status(503).json({ message: "Verification database is not configured." });
+  const product = String(request.body?.product || "").trim();
+  if (!product) return response.status(400).json({ message: "Product name is required." });
+  const codes = Array.from({ length: 20 }, () => `MVN-${crypto.randomBytes(5).toString("hex").toUpperCase()}`);
+  const batch = firestore.batch();
+  codes.forEach((code) => batch.set(firestore.collection("verificationCodes").doc(cleanCode(code)), { code, product, status: "active", scans: 0, createdAt: FieldValue.serverTimestamp() }));
+  await batch.commit();
+  const origin = process.env.STOREFRONT_ORIGIN || `${request.protocol}://${request.get("host")}`;
+  const document = new PDFDocument({ autoFirstPage: false, margin: 36, size: "A4" });
+  response.setHeader("Content-Type", "application/pdf");
+  response.setHeader("Content-Disposition", `attachment; filename="morven-verification-codes-${Date.now()}.pdf"`);
+  document.pipe(response);
+  for (let index = 0; index < codes.length; index += 1) {
+    if (index % 20 === 0) document.addPage();
+    const column = index % 2;
+    const row = Math.floor((index % 20) / 2);
+    const x = 45 + column * 270;
+    const y = 32 + row * 75;
+    const qr = await QRCode.toDataURL(`${origin}/verify.html?code=${encodeURIComponent(codes[index])}`, { margin: 1, width: 58 });
+    document.roundedRect(x, y, 245, 68, 5).stroke("#d7dce5");
+    document.image(qr, x + 5, y + 5, { width: 58, height: 58 });
+    document.fontSize(10).fillColor("#081b43").text(codes[index], x + 72, y + 28, { align: "left", width: 165 });
+  }
+  document.end();
 });
 
 app.put("/api/admin/orders/:reference/status", requireAdmin, async (request, response) => {

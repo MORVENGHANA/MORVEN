@@ -9,7 +9,7 @@ function renderProductCard(product, dashboard) {
     image.classList.add('has-uploaded-image');
     image.style.backgroundImage = `url(${product.imageUrl})`;
   }
-  image.innerHTML = `<span>${product.id}</span><div class="shape"></div><b>${product.name.toUpperCase()}</b>`;
+  image.innerHTML = '<div class="shape"></div>';
   const title = document.createElement('h2');
   title.textContent = product.name;
   const description = document.createElement('p');

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Verify your MORVEN product.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="verify.css">
+</head>
+<body class="verify-page">
+  <header class="site-header">
+    <a class="logo" href="index.html"><img src="Images/MORVEN.png" alt="MORVEN"></a>
+    <a class="arrow-link" href="javascript:history.back()">Back ↙</a>
+  </header>
+  <main class="verify-shell">
+    <section class="verify-panel">
+      <p class="kicker blue">MORVEN / Proof of origin</p>
+      <h1>Verify your<br><em>product.</em></h1>
+      <p>Enter the unique code printed on your MORVEN product tag, or scan its QR code to verify its origin.</p>
+      <form id="verify-form">
+        <label for="code">Product code</label>
+        <div class="verify-row"><input id="code" name="code" autocomplete="off" placeholder="MVN-XXXXXXXXXX" required><button class="button button-blue" type="submit">Verify <span>↗</span></button></div>
+      </form>
+      <div id="verify-result" class="verify-result" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+  <script src="verify.js"></script>
+</body>
+</html>
