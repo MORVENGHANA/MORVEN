@@ -31,6 +31,7 @@ const firestore = serviceAccountPath && fs.existsSync(serviceAccountPath)
 
 const firebaseAuth = firestore ? getAuth() : null;
 const staticRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "build");
+const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function cleanCode(value = "") {
   return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
@@ -251,6 +252,7 @@ app.post("/api/verify", async (request, response) => {
 });
 
 app.use(express.static(staticRoot));
+app.use(express.static(sourceRoot));
 app.get("/admin", (_request, response) => response.sendFile(path.join(staticRoot, "admin.html")));
 app.get(/.*/, (_request, response) => response.sendFile(path.join(staticRoot, "index.html")));
 
