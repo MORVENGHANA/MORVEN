@@ -7,11 +7,11 @@ import multer from "multer";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
+import sharp from "sharp";
 import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), ".env") });
 
@@ -32,12 +32,12 @@ function normalizedOrderStatus(value) {
 }
 const pendingOrders = new Map();
 const productImageUpload = multer({
-  limits: { fileSize: 750 * 1024 },
+  limits: { fileSize: 600 * 1024 },
   storage: multer.memoryStorage(),
   fileFilter: (_request, file, callback) => callback(null, ["image/jpeg", "image/png"].includes(file.mimetype)),
 });
 const parseProductImages = (request, response, next) => productImageUpload.fields([{ name: "image", maxCount: 1 }, { name: "imageBack", maxCount: 1 }])(request, response, (error) => {
-  if (error) return response.status(400).json({ message: error.code === "LIMIT_FILE_SIZE" ? "Product pictures must be 750 KB or smaller." : "Upload a JPEG, JPG, or PNG product picture." });
+  if (error) return response.status(400).json({ message: error.code === "LIMIT_FILE_SIZE" ? "Product pictures must be 600 KB or smaller." : "Upload a JPEG, JPG, or PNG product picture." });
   return next();
 });
 
@@ -59,14 +59,13 @@ try {
   } else {
     const serviceAccount = JSON.parse(serviceAccountText);
     if (serviceAccount.project_id !== firebaseProjectId) throw new Error(`service account belongs to ${serviceAccount.project_id}, expected ${firebaseProjectId}`);
-    firebaseApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount), storageBucket: `${firebaseProjectId}.firebasestorage.app` });
+    firebaseApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) });
     console.log(`Firebase Admin connected to ${serviceAccount.project_id}.`);
   }
 } catch (error) {
   console.error(`Firebase Admin credentials could not be loaded: ${error.message}`);
 }
 const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
-const storageBucket = firebaseApp ? getStorage(firebaseApp).bucket(process.env.FIREBASE_STORAGE_BUCKET || `${firebaseProjectId}.firebasestorage.app`) : null;
 
 const firebaseAuth = firestore ? getAuth() : null;
 const staticRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "build");
@@ -81,12 +80,19 @@ function productRecord(id, data) {
 }
 
 async function uploadProductImage(file, productId, side) {
-  if (!storageBucket) throw new Error("Firebase Storage is not configured.");
-  const token = crypto.randomUUID();
-  const objectPath = `products/${productId}/${side}-${crypto.randomBytes(6).toString("hex")}`;
-  const object = storageBucket.file(objectPath);
-  await object.save(file.buffer, { metadata: { contentType: file.mimetype, metadata: { firebaseStorageDownloadTokens: token } } });
-  return `https://firebasestorage.googleapis.com/v0/b/${storageBucket.name}/o/${encodeURIComponent(objectPath)}?alt=media&token=${token}`;
+  const compressed = await sharp(file.buffer).resize(1200, 1500, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 78, progressive: true }).toBuffer();
+  if (compressed.length > 700 * 1024) throw new Error("Image could not be compressed below the free Firestore size limit.");
+  const imageRef = firestore.collection("productImages").doc(`${productId}-${side}`);
+  const imageUrl = `data:image/jpeg;base64,${compressed.toString("base64")}`;
+  await imageRef.set({ productId, side, imageUrl, updatedAt: FieldValue.serverTimestamp() });
+  return imageUrl;
+}
+
+async function productWithImages(doc) {
+  const product = productRecord(doc.id, doc.data());
+  const images = await firestore.collection("productImages").where("productId", "==", doc.id).get();
+  images.forEach((image) => { if (image.data().side === "front") product.imageUrl = image.data().imageUrl; if (image.data().side === "back") product.imageBackUrl = image.data().imageUrl; });
+  return product;
 }
 
 async function getProducts() {
@@ -94,7 +100,7 @@ async function getProducts() {
   if (!firestore) return defaults;
   try {
     const snapshot = await firestore.collection("products").where("active", "!=", false).get();
-    return snapshot.empty ? defaults : snapshot.docs.map((doc) => productRecord(doc.id, doc.data()));
+    return snapshot.empty ? defaults : await Promise.all(snapshot.docs.map(productWithImages));
   } catch (error) {
     console.error("Product catalog unavailable.");
     return defaults;
@@ -189,7 +195,7 @@ app.get("/api/admin/products", requireAdmin, async (_request, response) => {
   if (!firestore) return response.json({ products: await getProducts() });
   try {
     const snapshot = await firestore.collection("products").orderBy("createdAt", "desc").get();
-    if (!snapshot.empty) return response.json({ products: snapshot.docs.map((doc) => productRecord(doc.id, doc.data())) });
+    if (!snapshot.empty) return response.json({ products: await Promise.all(snapshot.docs.map(productWithImages)) });
     const defaults = [...products].map(([name, price]) => ({ name, price, imageUrl: "", description: "MORVEN essential", active: true }));
     const batch = firestore.batch();
     const references = defaults.map((product) => firestore.collection("products").doc());
@@ -210,16 +216,16 @@ app.post("/api/admin/products", requireAdmin, parseProductImages, async (request
   const description = String(request.body?.description || "").trim();
   if (!name || !Number.isFinite(price) || price <= 0) return response.status(400).json({ message: "Product name and a positive price are required." });
   if (!image || !imageBack) return response.status(400).json({ message: "Upload both Picture 1 and Picture 2 as JPEG, JPG, or PNG files." });
-  if (!firestore || !storageBucket) return response.status(503).json({ message: "Product storage is not configured." });
+  if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
   const reference = firestore.collection("products").doc();
   const imageUrl = await uploadProductImage(image, reference.id, "front");
   const imageBackUrl = await uploadProductImage(imageBack, reference.id, "back");
-  await reference.set({ name, price, imageUrl, imageBackUrl, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  await reference.set({ name, price, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   return response.status(201).json({ product: productRecord(reference.id, { name, price, imageUrl, imageBackUrl, description, active: true }) });
 });
 
 app.put("/api/admin/products/:id", requireAdmin, parseProductImages, async (request, response) => {
-  if (!firestore || !storageBucket) return response.status(503).json({ message: "Product storage is not configured." });
+  if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
   const reference = firestore.collection("products").doc(request.params.id);
   const current = await reference.get();
   if (!current.exists) return response.status(404).json({ message: "Product not found." });
@@ -230,11 +236,11 @@ app.put("/api/admin/products/:id", requireAdmin, parseProductImages, async (requ
   const update = { name, price, description, updatedAt: FieldValue.serverTimestamp() };
   const image = request.files?.image?.[0];
   const imageBack = request.files?.imageBack?.[0];
-  if (image) update.imageUrl = await uploadProductImage(image, reference.id, "front");
-  if (imageBack) update.imageBackUrl = await uploadProductImage(imageBack, reference.id, "back");
+  const imageUrl = image ? await uploadProductImage(image, reference.id, "front") : current.data().imageUrl || "";
+  const imageBackUrl = imageBack ? await uploadProductImage(imageBack, reference.id, "back") : current.data().imageBackUrl || "";
   await reference.update(update);
   const currentData = current.data();
-  return response.json({ product: productRecord(reference.id, { ...currentData, name, price, description, imageUrl: update.imageUrl || currentData.imageUrl, imageBackUrl: update.imageBackUrl || currentData.imageBackUrl }) });
+  return response.json({ product: productRecord(reference.id, { ...currentData, name, price, description, imageUrl, imageBackUrl }) });
 });
 
 app.delete("/api/admin/products/:id", requireAdmin, async (request, response) => {
