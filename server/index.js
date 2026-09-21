@@ -21,6 +21,7 @@ const products = new Map([
   ["Transit Trouser", 128],
 ]);
 const adminEmail = (process.env.ADMIN_EMAIL || "fotsiemmanuel397@gmail.com").toLowerCase();
+const firebaseProjectId = "morven-1420a";
 const pendingOrders = new Map();
 const productImageUpload = multer({
   limits: { fileSize: 750 * 1024 },
@@ -40,14 +41,21 @@ const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_FILE
   : null;
 let firebaseApp = null;
 try {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
-    : serviceAccountPath && fs.existsSync(serviceAccountPath)
-      ? JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"))
-      : null;
-  if (serviceAccount) firebaseApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) });
-} catch {
-  console.error("Firebase Admin credentials are invalid.");
+  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  const encodedServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64?.trim();
+  const serviceAccountText = rawServiceAccount
+    || (encodedServiceAccount ? Buffer.from(encodedServiceAccount, "base64").toString("utf8") : null)
+    || (serviceAccountPath && fs.existsSync(serviceAccountPath) ? fs.readFileSync(serviceAccountPath, "utf8") : null);
+  if (!serviceAccountText) {
+    console.error("Firebase Admin credentials are not configured.");
+  } else {
+    const serviceAccount = JSON.parse(serviceAccountText);
+    if (serviceAccount.project_id !== firebaseProjectId) throw new Error(`service account belongs to ${serviceAccount.project_id}, expected ${firebaseProjectId}`);
+    firebaseApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) });
+    console.log(`Firebase Admin connected to ${serviceAccount.project_id}.`);
+  }
+} catch (error) {
+  console.error(`Firebase Admin credentials could not be loaded: ${error.message}`);
 }
 const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
 
