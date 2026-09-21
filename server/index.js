@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), ".env") });
 
@@ -58,13 +59,14 @@ try {
   } else {
     const serviceAccount = JSON.parse(serviceAccountText);
     if (serviceAccount.project_id !== firebaseProjectId) throw new Error(`service account belongs to ${serviceAccount.project_id}, expected ${firebaseProjectId}`);
-    firebaseApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) });
+    firebaseApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount), storageBucket: `${firebaseProjectId}.firebasestorage.app` });
     console.log(`Firebase Admin connected to ${serviceAccount.project_id}.`);
   }
 } catch (error) {
   console.error(`Firebase Admin credentials could not be loaded: ${error.message}`);
 }
 const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
+const storageBucket = firebaseApp ? getStorage(firebaseApp).bucket(process.env.FIREBASE_STORAGE_BUCKET || `${firebaseProjectId}.firebasestorage.app`) : null;
 
 const firebaseAuth = firestore ? getAuth() : null;
 const staticRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "build");
@@ -76,6 +78,15 @@ function cleanCode(value = "") {
 
 function productRecord(id, data) {
   return { id, ...data, price: Number(data.price), active: data.active !== false };
+}
+
+async function uploadProductImage(file, productId, side) {
+  if (!storageBucket) throw new Error("Firebase Storage is not configured.");
+  const token = crypto.randomUUID();
+  const objectPath = `products/${productId}/${side}-${crypto.randomBytes(6).toString("hex")}`;
+  const object = storageBucket.file(objectPath);
+  await object.save(file.buffer, { metadata: { contentType: file.mimetype, metadata: { firebaseStorageDownloadTokens: token } } });
+  return `https://firebasestorage.googleapis.com/v0/b/${storageBucket.name}/o/${encodeURIComponent(objectPath)}?alt=media&token=${token}`;
 }
 
 async function getProducts() {
@@ -196,18 +207,19 @@ app.post("/api/admin/products", requireAdmin, parseProductImages, async (request
   const price = Number(request.body?.price);
   const image = request.files?.image?.[0];
   const imageBack = request.files?.imageBack?.[0];
-  const imageUrl = image ? `data:${image.mimetype};base64,${image.buffer.toString("base64")}` : "";
-  const imageBackUrl = imageBack ? `data:${imageBack.mimetype};base64,${imageBack.buffer.toString("base64")}` : "";
   const description = String(request.body?.description || "").trim();
   if (!name || !Number.isFinite(price) || price <= 0) return response.status(400).json({ message: "Product name and a positive price are required." });
   if (!image || !imageBack) return response.status(400).json({ message: "Upload both Picture 1 and Picture 2 as JPEG, JPG, or PNG files." });
-  if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
-  const reference = await firestore.collection("products").add({ name, price, imageUrl, imageBackUrl, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  if (!firestore || !storageBucket) return response.status(503).json({ message: "Product storage is not configured." });
+  const reference = firestore.collection("products").doc();
+  const imageUrl = await uploadProductImage(image, reference.id, "front");
+  const imageBackUrl = await uploadProductImage(imageBack, reference.id, "back");
+  await reference.set({ name, price, imageUrl, imageBackUrl, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   return response.status(201).json({ product: productRecord(reference.id, { name, price, imageUrl, imageBackUrl, description, active: true }) });
 });
 
 app.put("/api/admin/products/:id", requireAdmin, parseProductImages, async (request, response) => {
-  if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
+  if (!firestore || !storageBucket) return response.status(503).json({ message: "Product storage is not configured." });
   const reference = firestore.collection("products").doc(request.params.id);
   const current = await reference.get();
   if (!current.exists) return response.status(404).json({ message: "Product not found." });
@@ -218,8 +230,8 @@ app.put("/api/admin/products/:id", requireAdmin, parseProductImages, async (requ
   const update = { name, price, description, updatedAt: FieldValue.serverTimestamp() };
   const image = request.files?.image?.[0];
   const imageBack = request.files?.imageBack?.[0];
-  if (image) update.imageUrl = `data:${image.mimetype};base64,${image.buffer.toString("base64")}`;
-  if (imageBack) update.imageBackUrl = `data:${imageBack.mimetype};base64,${imageBack.buffer.toString("base64")}`;
+  if (image) update.imageUrl = await uploadProductImage(image, reference.id, "front");
+  if (imageBack) update.imageBackUrl = await uploadProductImage(imageBack, reference.id, "back");
   await reference.update(update);
   const currentData = current.data();
   return response.json({ product: productRecord(reference.id, { ...currentData, name, price, description, imageUrl: update.imageUrl || currentData.imageUrl, imageBackUrl: update.imageBackUrl || currentData.imageBackUrl }) });
