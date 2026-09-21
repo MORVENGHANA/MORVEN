@@ -173,7 +173,7 @@ app.post("/api/payments/paystack/initialize", async (request, response) => {
         createdAt: FieldValue.serverTimestamp(),
       });
     }
-    return response.json({ authorizationUrl: payload.data.authorization_url, reference: payload.data.reference });
+    return response.json({ accessCode: payload.data.access_code, authorizationUrl: payload.data.authorization_url, reference: payload.data.reference });
   } catch (error) {
     console.error("Paystack initialization failed", error);
     return response.status(502).json({ message: "Payment service is temporarily unavailable." });
@@ -188,6 +188,13 @@ app.get("/api/payments/paystack/verify/:reference", async (request, response) =>
     });
     const payload = await paystackResponse.json();
     if (!paystackResponse.ok || !payload.status) return response.status(502).json({ message: payload.message || "Unable to verify payment." });
+    if (payload.data.status === "success" && firestore) {
+      const order = await firestore.collection("orders").doc(payload.data.reference).get();
+      const expectedAmount = order.exists ? Number(order.data().amount) * 100 : null;
+      if (expectedAmount !== null && Number(payload.data.amount) !== expectedAmount) {
+        return response.status(409).json({ message: "Payment amount could not be verified." });
+      }
+    }
     if (firestore) await firestore.collection("orders").doc(payload.data.reference).set({ status: payload.data.status, paidAt: FieldValue.serverTimestamp() }, { merge: true });
     return response.json({ status: payload.data.status, reference: payload.data.reference, amount: payload.data.amount, currency: payload.data.currency });
   } catch (error) {

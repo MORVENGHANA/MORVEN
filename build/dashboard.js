@@ -126,7 +126,12 @@ checkoutButton?.addEventListener('click', async () => {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Could not start payment.');
-    window.location.href = data.authorizationUrl;
+    if (data.accessCode && window.PaystackPop) {
+      const popup = new window.PaystackPop();
+      popup.resumeTransaction(data.accessCode);
+    } else {
+      window.location.href = data.authorizationUrl;
+    }
   } catch (error) {
     checkoutStatus.textContent = error.message;
     checkoutButton.disabled = false;
