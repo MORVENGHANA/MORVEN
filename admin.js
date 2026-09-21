@@ -45,7 +45,7 @@ async function loadAdminData() {
   const usersTable = document.querySelector('.users-table'); usersTable.replaceChildren();
   users.forEach((user) => { const row = document.createElement('tr'); row.append(cell(user.name), cell(user.email), cell(user.phone)); usersTable.append(row); });
   const ordersTable = document.querySelector('.orders-table'); ordersTable.replaceChildren();
-  orders.forEach((order) => { const row = document.createElement('tr'); row.append(cell(order.reference || order.id), cell(order.email), cell(`GH₵${order.amount || 0}`), cell(order.status)); ordersTable.append(row); });
+  orders.forEach((order) => { const row = document.createElement('tr'); row.append(cell(order.orderId || order.reference || order.id), cell(order.email), cell(`GH₵${order.amount || 0}`), cell(order.status)); ordersTable.append(row); });
 }
 
 document.querySelector('.product-form').addEventListener('submit', async (event) => {

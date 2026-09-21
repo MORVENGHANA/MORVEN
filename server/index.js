@@ -70,6 +70,18 @@ async function requireAdmin(request, response, next) {
   }
 }
 
+async function requireUser(request, response, next) {
+  if (!firebaseAuth) return response.status(503).json({ message: "User services are not configured." });
+  const token = request.headers.authorization?.startsWith("Bearer ") ? request.headers.authorization.slice(7) : "";
+  if (!token) return response.status(401).json({ message: "Sign in to view your orders." });
+  try {
+    request.user = await firebaseAuth.verifyIdToken(token);
+    return next();
+  } catch {
+    return response.status(401).json({ message: "Your session has expired. Sign in again." });
+  }
+}
+
 app.get("/health", (_request, response) => response.json({ service: "morven-verification", ok: true }));
 
 app.post("/api/payments/paystack/webhook", async (request, response) => {
@@ -103,6 +115,19 @@ app.post("/api/payments/paystack/webhook", async (request, response) => {
 });
 
 app.get("/api/products", async (_request, response) => response.json({ products: await getProducts() }));
+
+app.get("/api/orders", requireUser, async (request, response) => {
+  if (!firestore) return response.json({ orders: [] });
+  try {
+    const snapshot = await firestore.collection("orders").where("userId", "==", request.user.uid).get();
+    const orders = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+    return response.json({ orders });
+  } catch {
+    return response.status(503).json({ message: "Order history is temporarily unavailable." });
+  }
+});
 
 app.get("/api/admin/products", requireAdmin, async (_request, response) => {
   if (!firestore) return response.json({ products: await getProducts() });
@@ -154,7 +179,7 @@ app.get("/api/admin/orders", requireAdmin, async (_request, response) => {
   }
 });
 
-app.post("/api/payments/paystack/initialize", async (request, response) => {
+app.post("/api/payments/paystack/initialize", requireUser, async (request, response) => {
   const email = String(request.body?.email || "").trim();
   const items = Array.isArray(request.body?.items) ? request.body.items : [];
   const delivery = request.body?.delivery || {};
@@ -175,7 +200,8 @@ app.post("/api/payments/paystack/initialize", async (request, response) => {
   }
 
   const amount = lineItems.reduce((total, item) => total + item.price, 0) * 100;
-  const callbackUrl = process.env.PAYSTACK_CALLBACK_URL || `${process.env.STOREFRONT_ORIGIN || "http://localhost:3000"}/payment-success.html`;
+  const callbackUrl = process.env.PAYSTACK_CALLBACK_URL || `${request.protocol}://${request.get("host")}/payment-success.html`;
+  const orderId = `MVN-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
   try {
     const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
       body: JSON.stringify({
@@ -196,6 +222,9 @@ app.post("/api/payments/paystack/initialize", async (request, response) => {
       return response.status(502).json({ message: payload.message || "Paystack could not start the payment." });
     }
     const orderData = {
+      orderId,
+      userId: request.user.uid,
+      userEmail: request.user.email || email,
         email,
         delivery,
         items: lineItems,
@@ -208,7 +237,7 @@ app.post("/api/payments/paystack/initialize", async (request, response) => {
     if (firestore) {
       await firestore.collection("orders").doc(payload.data.reference).set({ ...orderData, createdAt: FieldValue.serverTimestamp() });
     }
-    return response.json({ accessCode: payload.data.access_code, authorizationUrl: payload.data.authorization_url, reference: payload.data.reference });
+    return response.json({ accessCode: payload.data.access_code, authorizationUrl: payload.data.authorization_url, orderId, reference: payload.data.reference });
   } catch (error) {
     console.error("Paystack initialization failed", error);
     return response.status(502).json({ message: "Payment service is temporarily unavailable." });

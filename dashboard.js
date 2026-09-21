@@ -57,9 +57,11 @@ checkoutButton?.addEventListener('click', async () => {
   checkoutButton.innerHTML = 'Proceeding to Paystack...';
   checkoutStatus.textContent = '';
   try {
+    const user = await window.morvenAuthReady;
+    if (!user) throw new Error('Your session has expired. Please sign in again.');
     const response = await fetch(`${apiUrl}/api/payments/paystack/initialize`, {
       body: JSON.stringify({ delivery, email, items: cart }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
       method: 'POST',
     });
     const responseText = await response.text();
@@ -72,11 +74,11 @@ checkoutButton?.addEventListener('click', async () => {
     if (!response.ok) throw new Error(data.message || 'Could not start payment.');
     const accessCode = data.accessCode || data.access_code;
     const authorizationUrl = data.authorizationUrl || data.authorization_url;
-    if (accessCode && window.PaystackPop) {
+    if (authorizationUrl) {
+      window.location.href = authorizationUrl;
+    } else if (accessCode && window.PaystackPop) {
       const popup = new window.PaystackPop();
       popup.resumeTransaction(accessCode);
-    } else if (authorizationUrl) {
-      window.location.href = authorizationUrl;
     } else {
       throw new Error(data.message || 'Paystack did not return a checkout link.');
     }

@@ -13,6 +13,7 @@ const firebaseApp = initializeApp({
 const auth = getAuth(firebaseApp);
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 let logoutButton;
+window.morvenAuthReady = auth.authStateReady().then(() => auth.currentUser);
 
 function setAccountControls(user) {
   document.querySelectorAll('.account-actions').forEach((actions) => {
@@ -53,8 +54,7 @@ function setAccountControls(user) {
   }
 }
 
-auth.authStateReady().then(() => {
-  const user = auth.currentUser;
+window.morvenAuthReady.then((user) => {
   if (!user) {
     window.location.replace('login.html');
     return;
