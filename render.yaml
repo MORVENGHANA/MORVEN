@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: morven
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: MORVEN_API_URL
+        sync: false
