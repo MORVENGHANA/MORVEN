@@ -52,4 +52,10 @@ function setAccountControls(user) {
   }
 }
 
-onAuthStateChanged(auth, setAccountControls);
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    window.location.replace('login.html');
+    return;
+  }
+  setAccountControls(user);
+});
