@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Shop the MORVEN collection.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="cart.css">
+</head>
+<body class="dashboard-page">
+  <header class="site-header">
+    <a class="logo" href="index.html"><img src="Images/MORVEN.png" alt="MORVEN"></a>
+    <nav class="desktop-nav"><a href="index.html">Home</a><a href="#products">Collection</a><a href="index.html#verify">Verify a piece</a></nav>
+    <div class="account-actions">
+      <a class="auth-link" href="login.html">Login</a>
+      <a class="auth-button" href="signup.html">Sign up</a>
+      <a class="admin-link" href="admin.html">Admin</a>
+      <button class="cart-link" type="button" aria-controls="cart" aria-expanded="false"><span>Cart</span><b class="cart-count">0</b></button>
+    </div>
+  </header>
+  <main>
+    <section class="shop-hero"><div><p class="kicker blue">Foundation series / 01</p><h1>The pieces<br><em>that stay.</em></h1><p>Considered essentials designed to become part of your everyday archive.</p></div><div class="shop-number">MM<br><span>26</span></div></section>
+    <section class="shop-grid" id="products">
+      <div class="shop-grid-head"><p class="kicker blue">The collection</p><span>03 pieces / ready to build</span></div>
+      <div class="dashboard-products">
+        <article class="shop-product"><div class="product-image product-one"><span>01</span><div class="shape"></div><b>FORM / 01</b></div><h2>Studio Overshirt</h2><p>Heavy cotton / Ink</p><strong>GH₵148</strong><button class="add-button" data-product="Studio Overshirt" data-price="148">Add to cart +</button></article>
+        <article class="shop-product"><div class="product-image product-two"><span>02</span><div class="shape"></div><b>FORM / 02</b></div><h2>Form Knit Polo</h2><p>Mercerized knit / Stone</p><strong>GH₵118</strong><button class="add-button" data-product="Form Knit Polo" data-price="118">Add to cart +</button></article>
+        <article class="shop-product"><div class="product-image product-three"><span>03</span><div class="shape"></div><b>FORM / 03</b></div><h2>Transit Trouser</h2><p>Wool blend / Cobalt</p><strong>GH₵128</strong><button class="add-button" data-product="Transit Trouser" data-price="128">Add to cart +</button></article>
+      </div>
+    </section>
+    <aside class="cart-panel" id="cart" aria-hidden="true">
+      <div class="cart-heading"><div><p class="kicker blue">Your archive</p><h2>Your cart <span class="cart-count">0</span></h2></div><button class="cart-close" type="button" aria-label="Close cart">×</button></div>
+      <div class="cart-items"><p>Your cart is empty.</p></div>
+      <div class="cart-total"><span>Total</span><strong>GH₵0</strong></div>
+      <label class="checkout-email" for="checkout-email">Receipt email</label>
+      <input class="checkout-email-input" id="checkout-email" type="email" autocomplete="email" placeholder="you@example.com">
+      <fieldset class="delivery-details">
+        <legend>Delivery details</legend>
+        <input id="delivery-name" type="text" autocomplete="name" placeholder="Name" required>
+        <input id="delivery-city" type="text" autocomplete="address-level2" placeholder="City" required>
+        <input id="delivery-street" type="text" autocomplete="street-address" placeholder="Street address" required>
+        <input id="delivery-house" type="text" autocomplete="address-line2" placeholder="House address / number" required>
+        <input id="delivery-phone" type="tel" autocomplete="tel" placeholder="Phone number" required>
+        <textarea id="delivery-comment" rows="2" placeholder="Special comment"></textarea>
+      </fieldset>
+      <p class="checkout-status" role="status" aria-live="polite"></p>
+      <button class="checkout-button" type="button" disabled>Pay securely with Paystack <span>↗</span></button>
+    </aside>
+  </main>
+  <script src="script.js"></script>
+  <script src="catalog.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

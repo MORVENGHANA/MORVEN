@@ -1,0 +1,267 @@
+.shop-grid-head span,
+.shop-product p,
+.shop-product strong,
+.add-button {
+  font-family: 'Manrope', sans-serif !important;
+}
+
+.shop-grid-head span {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: .02em !important;
+  text-transform: none !important;
+}
+
+.shop-product p,
+.shop-product strong {
+  font-size: 11px !important;
+}
+
+.add-button {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: .05em !important;
+}
+
+.auth-card label,
+.auth-card input,
+.auth-card button,
+.auth-card small,
+.auth-message {
+  font-family: 'Manrope', sans-serif !important;
+}
+
+.auth-card label {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .02em !important;
+  text-transform: none !important;
+}
+
+.auth-card input {
+  font-size: 14px !important;
+}
+
+.auth-card button {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .02em !important;
+  text-transform: none !important;
+}
+
+.auth-card small,
+.auth-message {
+  font-size: 11px !important;
+}
+
+.auth-message {
+  font-weight: 600 !important;
+}
+
+.logout-button {
+  align-items: center;
+  background: var(--navy);
+  border: 0;
+  color: var(--acid);
+  cursor: pointer;
+  display: flex;
+  font-family: 'Manrope', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  justify-content: space-between;
+  letter-spacing: .04em;
+  margin: 34px auto 70px;
+  max-width: 1180px;
+  min-height: 62px;
+  padding: 0 22px;
+  text-align: left;
+  text-transform: uppercase;
+  transition: background .25s, color .25s, transform .25s;
+  width: calc(100% - 64px);
+}
+
+.logout-button:hover {
+  background: var(--blue);
+  color: #fff;
+  transform: translateY(-3px);
+}
+
+.logout-button b {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+@media (max-width: 760px) {
+  .site-header {
+    height: 64px !important;
+    padding: 0 18px !important;
+  }
+
+  .logo {
+    height: 29px !important;
+    width: 100px !important;
+  }
+
+  .logo img {
+    height: 100px !important;
+    left: 0 !important;
+    top: -31px !important;
+    width: 100px !important;
+  }
+
+  .menu-button,
+  .mobile-nav {
+    display: none !important;
+  }
+
+  .hero {
+    border-radius: 20px !important;
+    margin: 0 12px 48px !important;
+  }
+
+  .hero-copy {
+    min-height: 470px !important;
+    padding: 40px 24px 44px !important;
+  }
+
+  .hero-visual {
+    display: none !important;
+  }
+
+  .hero h1 {
+    font-size: 58px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .hero-visual {
+    min-height: 290px !important;
+  }
+
+  .legacy {
+    padding: 70px 22px 80px !important;
+  }
+
+  .legacy h2,
+  .collection h2,
+  .verify h2 {
+    font-size: 48px !important;
+  }
+
+  .collection,
+  .verify {
+    border-radius: 20px !important;
+    margin: 0 12px !important;
+    padding: 38px 18px 54px !important;
+  }
+
+  .verify-art {
+    display: none !important;
+  }
+
+  .verify-copy {
+    max-width: none !important;
+  }
+
+  .collection-heading {
+    gap: 14px !important;
+    margin: 30px 0 24px !important;
+  }
+
+  .products,
+  .dashboard-products {
+    display: flex !important;
+    gap: 14px !important;
+    overflow-x: auto !important;
+    padding: 4px 0 18px !important;
+    scroll-padding-left: 0;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .product,
+  .shop-product {
+    flex: 0 0 68vw !important;
+    max-width: 250px !important;
+    scroll-snap-align: start;
+  }
+
+  .product-image {
+    height: 58vw !important;
+    max-height: 225px !important;
+    min-height: 180px !important;
+  }
+
+  .shop-hero {
+    border-radius: 20px !important;
+    margin: 0 12px !important;
+    min-height: 330px !important;
+    padding: 34px 22px !important;
+  }
+
+  .shop-hero h1 {
+    font-size: 52px !important;
+  }
+
+  .shop-hero::after {
+    font-size: 140px !important;
+    height: 210px !important;
+    right: -56px !important;
+    top: -32px !important;
+    width: 210px !important;
+  }
+
+  .shop-grid {
+    padding: 48px 18px 24px !important;
+  }
+
+  .shop-grid-head {
+    align-items: flex-start !important;
+    gap: 10px !important;
+    flex-direction: column !important;
+  }
+
+  .shop-grid-head .kicker {
+    margin-bottom: 0 !important;
+  }
+
+  .shop-product h2 {
+    font-size: 15px !important;
+    margin-top: 11px !important;
+  }
+
+  .cart-panel {
+    border-radius: 20px !important;
+    margin: 24px 12px 48px !important;
+    padding: 22px !important;
+  }
+
+  .auth-layout {
+    padding: 20px 16px 42px !important;
+  }
+
+  .auth-art {
+    min-height: 148px !important;
+  }
+
+  .auth-art span {
+    font-size: 48px !important;
+  }
+
+  .auth-card {
+    border-radius: 22px !important;
+    gap: 10px !important;
+    padding: 24px 20px !important;
+  }
+
+  .auth-card h1 {
+    font-size: 42px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .logout-button {
+    margin: 24px 16px 46px !important;
+    min-height: 56px !important;
+    width: calc(100% - 32px) !important;
+  }
+}
