@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+import { browserLocalPersistence, getAuth, onAuthStateChanged, setPersistence, signOut } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
 
 const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
 const firebaseApp = initializeApp({
@@ -11,6 +11,7 @@ const firebaseApp = initializeApp({
   appId: '1:133394499575:web:d571d789aa23d6e0c1d0f2',
 });
 const auth = getAuth(firebaseApp);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 let logoutButton;
 
 function setAccountControls(user) {
@@ -52,7 +53,8 @@ function setAccountControls(user) {
   }
 }
 
-onAuthStateChanged(auth, (user) => {
+auth.authStateReady().then(() => {
+  const user = auth.currentUser;
   if (!user) {
     window.location.replace('login.html');
     return;

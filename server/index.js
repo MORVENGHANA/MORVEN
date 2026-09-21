@@ -259,7 +259,7 @@ app.post("/api/verify", async (request, response) => {
 
 app.use(express.static(staticRoot));
 app.use(express.static(sourceRoot));
+app.get("/", (_request, response) => response.sendFile(path.join(staticRoot, "index.html")));
 app.get("/admin", (_request, response) => response.sendFile(path.join(staticRoot, "admin.html")));
-app.get(/.*/, (_request, response) => response.sendFile(path.join(staticRoot, "index.html")));
 
 app.listen(port, () => console.log(`MORVEN verification API listening on ${port}`));

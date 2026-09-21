@@ -2,6 +2,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebas
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  browserLocalPersistence,
+  setPersistence,
   signInWithEmailAndPassword,
   updateProfile,
 } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
@@ -17,6 +19,8 @@ const firebaseApp = initializeApp({
 const auth = getAuth(firebaseApp);
 const authForm = document.querySelector('[data-auth]');
 
+const persistenceReady = setPersistence(auth, browserLocalPersistence);
+
 authForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = authForm.querySelector('button');
@@ -30,6 +34,7 @@ authForm?.addEventListener('submit', async (event) => {
   message.textContent = 'Connecting to the MORVEN archive...';
 
   try {
+    await persistenceReady;
     if (isSignup) {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(credential.user, { displayName: inputs[0].value.trim() });
@@ -38,6 +43,8 @@ authForm?.addEventListener('submit', async (event) => {
       await signInWithEmailAndPassword(auth, email, password);
       message.textContent = 'Welcome back to MORVEN.';
     }
+    await auth.authStateReady();
+    await auth.currentUser?.getIdToken(true);
     localStorage.setItem('morvenUser', 'signed-in');
     setTimeout(() => { window.location.href = 'dashboard.html'; }, 650);
   } catch (error) {
