@@ -10,7 +10,7 @@
 <body class="admin-page">
   <header class="site-header">
     <a class="logo" href="index.html"><img src="Images/MORVEN.png" alt="MORVEN"></a>
-    <a class="admin-exit" href="dashboard.html">Back to storefront ↙</a>
+    <button class="admin-exit admin-back" type="button">Back ↙</button>
   </header>
   <main class="admin-shell">
     <div class="admin-heading"><div><p class="kicker blue">MORVEN / Control room</p><h1>Manage<br><em>the archive.</em></h1></div><button class="admin-signout" type="button">Sign out</button></div>
@@ -24,10 +24,11 @@
         <label>Product picture<input name="image" type="file" accept="image/jpeg,image/png" required></label>
         <label>Description<textarea name="description" rows="3" placeholder="Heavy cotton / Ink"></textarea></label>
         <button class="admin-action" type="submit">Publish item <span>↗</span></button>
+        <button class="admin-cancel" type="button" hidden>Cancel edit</button>
       </form>
       <section class="admin-card"><p class="kicker blue">Live catalog</p><h2>Packages</h2><div class="admin-table-wrap"><table><thead><tr><th>Item</th><th>Price</th><th></th></tr></thead><tbody class="products-table"></tbody></table></div></section>
       <section class="admin-card admin-wide"><p class="kicker blue">Customers</p><h2>Users</h2><div class="admin-table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th></tr></thead><tbody class="users-table"></tbody></table></div></section>
-      <section class="admin-card admin-wide"><p class="kicker blue">Fulfillment</p><h2>Orders</h2><div class="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead><tbody class="orders-table"></tbody></table></div></section>
+      <section class="admin-card admin-wide"><p class="kicker blue">Fulfillment</p><h2>Orders</h2><div class="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Delivery details</th><th>Status</th><th>Update</th></tr></thead><tbody class="orders-table"></tbody></table></div></section>
     </section>
   </main>
   <script type="module" src="admin.js"></script>

@@ -15,6 +15,7 @@ const checkoutButton = document.querySelector('.checkout-button');
 const checkoutEmail = document.querySelector('.checkout-email-input');
 const checkoutStatus = document.querySelector('.checkout-status');
 const apiUrl = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
+let suppressCartToggleClick = false;
 const deliveryFields = {
   name: document.querySelector('#delivery-name'),
   city: document.querySelector('#delivery-city'),
@@ -45,6 +46,10 @@ function setCartOpen(isOpen) {
 }
 
 cartToggle?.addEventListener('click', () => {
+  if (suppressCartToggleClick) {
+    suppressCartToggleClick = false;
+    return;
+  }
   setCartOpen(!cartPanel?.classList.contains('open'));
 });
 cartClose?.addEventListener('click', () => setCartOpen(false));
@@ -63,6 +68,39 @@ cartItems?.addEventListener('click', (event) => {
   localStorage.setItem('morvenCart', JSON.stringify(cart));
   renderCart();
 });
+
+if (cartToggle && window.matchMedia('(max-width: 760px)').matches) {
+  let dragging = false;
+  let moved = false;
+  let offsetX = 0;
+  let offsetY = 0;
+  cartToggle.addEventListener('pointerdown', (event) => {
+    dragging = true;
+    moved = false;
+    const bounds = cartToggle.getBoundingClientRect();
+    offsetX = event.clientX - bounds.left;
+    offsetY = event.clientY - bounds.top;
+    cartToggle.setPointerCapture(event.pointerId);
+  });
+  cartToggle.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    const nextLeft = Math.max(8, Math.min(window.innerWidth - cartToggle.offsetWidth - 8, event.clientX - offsetX));
+    const nextTop = Math.max(8, Math.min(window.innerHeight - cartToggle.offsetHeight - 8, event.clientY - offsetY));
+    if (Math.abs(event.movementX) > 1 || Math.abs(event.movementY) > 1) moved = true;
+    cartToggle.style.left = `${nextLeft}px`;
+    cartToggle.style.top = `${nextTop}px`;
+    cartToggle.style.right = 'auto';
+    cartToggle.style.bottom = 'auto';
+  });
+  const stopDragging = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    if (moved) suppressCartToggleClick = true;
+    if (cartToggle.hasPointerCapture(event.pointerId)) cartToggle.releasePointerCapture(event.pointerId);
+  };
+  cartToggle.addEventListener('pointerup', stopDragging);
+  cartToggle.addEventListener('pointercancel', stopDragging);
+}
 checkoutButton?.addEventListener('click', async () => {
   const email = checkoutEmail?.value.trim();
   if (!email || !checkoutEmail.checkValidity()) {
@@ -71,6 +109,13 @@ checkoutButton?.addEventListener('click', async () => {
     return;
   }
   const delivery = Object.fromEntries(Object.entries(deliveryFields).map(([key, field]) => [key, field?.value.trim() || '']));
+  const requiredDelivery = ['name', 'city', 'streetAddress', 'houseAddress', 'phone'];
+  const missingDelivery = requiredDelivery.find((field) => !delivery[field]);
+  if (missingDelivery) {
+    checkoutStatus.textContent = 'Complete all delivery details before continuing to Paystack.';
+    deliveryFields[missingDelivery]?.focus();
+    return;
+  }
   checkoutButton.disabled = true;
   checkoutButton.innerHTML = 'Proceeding to Paystack...';
   checkoutStatus.textContent = '';

@@ -10,11 +10,12 @@
 <body class="payment-page">
   <main class="payment-result payment-pending" aria-live="polite">
     <div class="payment-mark" aria-hidden="true"><span>✓</span></div>
-    <p class="payment-eyebrow">MORVEN / Order received</p>
-    <h1 id="payment-title">Confirming<br><em>your payment.</em></h1>
+    <p class="payment-eyebrow">Thank you!</p>
+    <h1 id="payment-title">Your payment<br><em>went through.</em></h1>
     <p id="payment-message">We are checking your Paystack transaction.</p>
-    <div class="payment-details" hidden><span>Amount</span><strong id="payment-amount"></strong><span>Reference</span><strong id="payment-reference"></strong></div>
-    <p class="payment-countdown" hidden>Returning to your collection in <strong id="countdown">5</strong> seconds.</p>
+    <p id="payment-appreciation" hidden>We’ve received your order and payment successfully. We truly appreciate your purchase.<br>Thanks for shopping with us!</p>
+    <div class="payment-details" hidden><span>Amount:</span><strong id="payment-amount"></strong><span>Reference:</span><strong id="payment-reference"></strong><span>Track your order with:</span><strong id="payment-order-id"></strong></div>
+    <p class="payment-countdown" hidden>Taking you back to your collection in <strong id="countdown">2</strong> seconds.</p>
     <a class="payment-back" href="dashboard.html">Continue shopping <span>↗</span></a>
   </main>
   <script>
@@ -23,9 +24,11 @@
     const result = document.querySelector('.payment-result');
     const title = document.querySelector('#payment-title');
     const message = document.querySelector('#payment-message');
+    const appreciation = document.querySelector('#payment-appreciation');
     const details = document.querySelector('.payment-details');
     const amount = document.querySelector('#payment-amount');
     const referenceValue = document.querySelector('#payment-reference');
+    const orderId = document.querySelector('#payment-order-id');
     const countdownMessage = document.querySelector('.payment-countdown');
     const countdown = document.querySelector('#countdown');
     if (!reference) {
@@ -45,14 +48,16 @@
             return;
           }
           result.className = 'payment-result payment-success';
-          title.innerHTML = 'Payment<br><em>completed.</em>';
-          message.textContent = 'Your MORVEN order is confirmed. We will prepare it for delivery.';
+          title.innerHTML = 'Thank you!';
+          message.textContent = 'Your payment went through.';
+          appreciation.hidden = false;
           amount.textContent = `GH₵${Number(data.amount) / 100}`;
           referenceValue.textContent = data.reference;
+          orderId.textContent = data.orderId || 'Order ID pending';
           details.hidden = false;
           countdownMessage.hidden = false;
           localStorage.removeItem('morvenCart');
-          let seconds = 5;
+          let seconds = 2;
           const timer = setInterval(() => {
             seconds -= 1;
             countdown.textContent = seconds;

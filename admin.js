@@ -12,10 +12,14 @@ const app = initializeApp({
 const auth = getAuth(app);
 const apiUrl = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
 const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
+const ORDER_STATUSES = ['Pending', 'Accepted', 'Order is being Prepared', 'On its way to be Delivered', 'Delivered'];
 const status = document.querySelector('.admin-status');
 const toast = document.querySelector('.admin-toast');
 const grid = document.querySelector('.admin-grid');
+const productForm = document.querySelector('.product-form');
+const cancelEdit = document.querySelector('.admin-cancel');
 let token = '';
+let editingProductId = '';
 
 function showToast(message, isError = false) {
   toast.textContent = message;
@@ -39,6 +43,16 @@ function cell(value) {
   return element;
 }
 
+function deliveryCell(delivery = {}) {
+  const element = document.createElement('td');
+  [['Name', 'name'], ['City', 'city'], ['Street', 'streetAddress'], ['House', 'houseAddress'], ['Phone', 'phone'], ['Comment', 'comment']].forEach(([label, key]) => {
+    const line = document.createElement('div');
+    line.textContent = `${label}: ${delivery[key] || '—'}`;
+    element.append(line);
+  });
+  return element;
+}
+
 async function loadAdminData() {
   const [{ products }, { users }, { orders }] = await Promise.all([api('/api/admin/products'), api('/api/admin/users'), api('/api/admin/orders')]);
   const productsTable = document.querySelector('.products-table');
@@ -47,26 +61,69 @@ async function loadAdminData() {
     const row = document.createElement('tr');
     row.append(cell(product.name), cell(`GH₵${product.price}`));
     const action = document.createElement('td');
+    const actions = document.createElement('div');
+    actions.className = 'product-actions';
+    const edit = document.createElement('button');
+    edit.className = 'table-action'; edit.textContent = 'Edit'; edit.type = 'button';
+    edit.addEventListener('click', () => {
+      editingProductId = product.id;
+      productForm.elements.name.value = product.name;
+      productForm.elements.price.value = product.price;
+      productForm.elements.description.value = product.description || '';
+      productForm.elements.image.value = '';
+      productForm.elements.image.required = false;
+      productForm.querySelector('.admin-action').innerHTML = 'Update item <span>↗</span>';
+      cancelEdit.hidden = false;
+      productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     const remove = document.createElement('button');
-    remove.className = 'table-action'; remove.textContent = 'Archive'; remove.type = 'button';
-    remove.addEventListener('click', async () => { await api(`/api/admin/products/${product.id}`, { method: 'DELETE' }); await loadAdminData(); });
-    action.append(remove); row.append(action); productsTable.append(row);
+    remove.className = 'table-action'; remove.textContent = 'Bin'; remove.type = 'button'; remove.setAttribute('aria-label', `Delete ${product.name}`);
+    remove.addEventListener('click', async () => { if (!window.confirm(`Delete ${product.name}?`)) return; await api(`/api/admin/products/${product.id}`, { method: 'DELETE' }); await loadAdminData(); });
+    actions.append(edit, remove); action.append(actions); row.append(action); productsTable.append(row);
   });
   const usersTable = document.querySelector('.users-table'); usersTable.replaceChildren();
   users.forEach((user) => { const row = document.createElement('tr'); row.append(cell(user.name), cell(user.email), cell(user.phone)); usersTable.append(row); });
   const ordersTable = document.querySelector('.orders-table'); ordersTable.replaceChildren();
-  orders.forEach((order) => { const row = document.createElement('tr'); row.append(cell(order.orderId || order.reference || order.id), cell(order.email), cell(`GH₵${order.amount || 0}`), cell(order.status)); ordersTable.append(row); });
+  orders.forEach((order) => {
+    const row = document.createElement('tr');
+    row.append(cell(order.orderId || order.reference || order.id), cell(order.email), cell(`GH₵${order.amount || 0}`), deliveryCell(order.delivery), cell(order.status || 'Pending'));
+    const action = document.createElement('td');
+    const select = document.createElement('select');
+    select.className = 'order-status-select';
+    ORDER_STATUSES.forEach((statusOption) => {
+      const option = document.createElement('option');
+      option.value = statusOption; option.textContent = statusOption; option.selected = statusOption === (order.status || 'Pending');
+      select.append(option);
+    });
+    select.addEventListener('change', async () => {
+      try { await api(`/api/admin/orders/${encodeURIComponent(order.reference || order.id)}/status`, { method: 'PUT', body: JSON.stringify({ status: select.value }) }); showToast('Order status updated.'); }
+      catch (error) { showToast(error.message, true); select.value = order.status || 'Pending'; }
+    });
+    action.append(select); row.append(action); ordersTable.append(row);
+  });
 }
 
-document.querySelector('.product-form').addEventListener('submit', async (event) => {
+function resetProductForm() {
+  editingProductId = '';
+  productForm.reset();
+  productForm.elements.image.required = true;
+  productForm.querySelector('.admin-action').innerHTML = 'Publish item <span>↗</span>';
+  cancelEdit.hidden = true;
+}
+
+cancelEdit.addEventListener('click', resetProductForm);
+document.querySelector('.admin-back').addEventListener('click', () => window.history.back());
+
+productForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const data = new FormData(form);
   const submit = form.querySelector('button[type="submit"]');
   submit.disabled = true;
   try {
-    const { product } = await api('/api/admin/products', { method: 'POST', body: data });
-    form.reset();
+    const path = editingProductId ? `/api/admin/products/${editingProductId}` : '/api/admin/products';
+    const { product } = await api(path, { method: editingProductId ? 'PUT' : 'POST', body: data });
+    resetProductForm();
     status.textContent = `Signed in as ${auth.currentUser.email}.`;
     showToast(`${product.name} was published successfully.`);
     await loadAdminData();

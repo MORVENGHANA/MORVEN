@@ -22,6 +22,7 @@ const products = new Map([
 ]);
 const adminEmail = (process.env.ADMIN_EMAIL || "fotsiemmanuel397@gmail.com").toLowerCase();
 const firebaseProjectId = "morven-1420a";
+const orderStatuses = ["Pending", "Accepted", "Order is being Prepared", "On its way to be Delivered", "Delivered"];
 const pendingOrders = new Map();
 const productImageUpload = multer({
   limits: { fileSize: 750 * 1024 },
@@ -134,7 +135,7 @@ app.post("/api/payments/paystack/webhook", async (request, response) => {
     if (!orderData || Number(transaction.amount) !== expectedAmount || transaction.currency !== "GHS") {
       return response.status(400).json({ message: "Webhook amount does not match the order." });
     }
-    const update = { status: "success", paidAt: new Date().toISOString(), paymentChannel: transaction.channel || null };
+    const update = { paymentStatus: "success", paidAt: new Date().toISOString(), paymentChannel: transaction.channel || null };
     pendingOrders.set(orderReference, { ...orderData, ...update });
     if (orderRef) await orderRef.set({ ...update, paidAt: FieldValue.serverTimestamp() }, { merge: true });
   }
@@ -160,7 +161,13 @@ app.get("/api/admin/products", requireAdmin, async (_request, response) => {
   if (!firestore) return response.json({ products: await getProducts() });
   try {
     const snapshot = await firestore.collection("products").orderBy("createdAt", "desc").get();
-    return response.json({ products: snapshot.empty ? await getProducts() : snapshot.docs.map((doc) => productRecord(doc.id, doc.data())) });
+    if (!snapshot.empty) return response.json({ products: snapshot.docs.map((doc) => productRecord(doc.id, doc.data())) });
+    const defaults = [...products].map(([name, price]) => ({ name, price, imageUrl: "", description: "MORVEN essential", active: true }));
+    const batch = firestore.batch();
+    const references = defaults.map((product) => firestore.collection("products").doc());
+    defaults.forEach((product, index) => batch.set(references[index], { ...product, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }));
+    await batch.commit();
+    return response.json({ products: defaults.map((product, index) => productRecord(references[index].id, product)) });
   } catch (error) {
     console.error("Product database unavailable.");
     return response.status(503).json({ message: "Product management is temporarily unavailable. Enable Firestore to manage products." });
@@ -179,9 +186,24 @@ app.post("/api/admin/products", requireAdmin, parseProductImage, async (request,
   return response.status(201).json({ product: productRecord(reference.id, { name, price, imageUrl, description, active: true }) });
 });
 
+app.put("/api/admin/products/:id", requireAdmin, parseProductImage, async (request, response) => {
+  if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
+  const reference = firestore.collection("products").doc(request.params.id);
+  const current = await reference.get();
+  if (!current.exists) return response.status(404).json({ message: "Product not found." });
+  const name = String(request.body?.name || "").trim();
+  const price = Number(request.body?.price);
+  const description = String(request.body?.description || "").trim();
+  if (!name || !Number.isFinite(price) || price <= 0) return response.status(400).json({ message: "Product name and a positive price are required." });
+  const update = { name, price, description, updatedAt: FieldValue.serverTimestamp() };
+  if (request.file) update.imageUrl = `data:${request.file.mimetype};base64,${request.file.buffer.toString("base64")}`;
+  await reference.update(update);
+  return response.json({ product: productRecord(reference.id, { ...current.data(), ...update, imageUrl: update.imageUrl || current.data().imageUrl }) });
+});
+
 app.delete("/api/admin/products/:id", requireAdmin, async (request, response) => {
   if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
-  await firestore.collection("products").doc(request.params.id).update({ active: false, updatedAt: FieldValue.serverTimestamp() });
+  await firestore.collection("products").doc(request.params.id).delete();
   return response.status(204).end();
 });
 
@@ -207,10 +229,25 @@ app.get("/api/admin/orders", requireAdmin, async (_request, response) => {
   }
 });
 
+app.put("/api/admin/orders/:reference/status", requireAdmin, async (request, response) => {
+  const status = String(request.body?.status || "").trim();
+  if (!orderStatuses.includes(status)) return response.status(400).json({ message: "Invalid order status." });
+  if (!firestore) return response.status(503).json({ message: "Order database is not configured." });
+  const reference = firestore.collection("orders").doc(request.params.reference);
+  const order = await reference.get();
+  if (!order.exists) return response.status(404).json({ message: "Order not found." });
+  await reference.update({ status, updatedAt: FieldValue.serverTimestamp() });
+  return response.json({ order: { id: reference.id, ...order.data(), status } });
+});
+
 app.post("/api/payments/paystack/initialize", requireUser, async (request, response) => {
   const email = String(request.body?.email || "").trim();
   const items = Array.isArray(request.body?.items) ? request.body.items : [];
   const delivery = request.body?.delivery || {};
+  const requiredDeliveryFields = ["name", "city", "streetAddress", "houseAddress", "phone"];
+  if (requiredDeliveryFields.some((field) => !String(delivery[field] || "").trim())) {
+    return response.status(400).json({ message: "Name, city, street address, house address, and phone number are required." });
+  }
   if (!/^\S+@\S+\.\S+$/.test(email) || !items.length) {
     return response.status(400).json({ message: "A valid email and at least one cart item are required." });
   }
@@ -259,7 +296,8 @@ app.post("/api/payments/paystack/initialize", requireUser, async (request, respo
         items: lineItems,
         amount: amount / 100,
         currency: "GHS",
-        status: "pending",
+        status: "Pending",
+        paymentStatus: "pending",
         reference: payload.data.reference,
       };
     pendingOrders.set(payload.data.reference, orderData);
@@ -287,10 +325,10 @@ app.get("/api/payments/paystack/verify/:reference", async (request, response) =>
     if (payload.data.status === "success" && (!orderData || Number(payload.data.amount) !== Number(orderData.amount) * 100 || payload.data.currency !== "GHS")) {
       return response.status(409).json({ message: "Payment amount could not be verified." });
     }
-    const update = { status: payload.data.status, paidAt: payload.data.status === "success" ? new Date().toISOString() : null };
+    const update = { paymentStatus: payload.data.status, paidAt: payload.data.status === "success" ? new Date().toISOString() : null };
     pendingOrders.set(payload.data.reference, { ...(orderData || {}), ...update });
     if (firestore) await firestore.collection("orders").doc(payload.data.reference).set({ ...update, paidAt: payload.data.status === "success" ? FieldValue.serverTimestamp() : null }, { merge: true });
-    return response.json({ status: payload.data.status, reference: payload.data.reference, amount: payload.data.amount, currency: payload.data.currency });
+    return response.json({ status: payload.data.status, orderId: orderData?.orderId || null, reference: payload.data.reference, amount: payload.data.amount, currency: payload.data.currency });
   } catch (error) {
     console.error("Paystack verification failed", error);
     return response.status(502).json({ message: "Payment verification is temporarily unavailable." });

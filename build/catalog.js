@@ -5,7 +5,10 @@ function renderProductCard(product, dashboard) {
   article.className = dashboard ? 'shop-product' : 'product';
   const image = document.createElement('div');
   image.className = `product-image product-${product.id}`;
-  if (product.imageUrl) image.style.backgroundImage = `url(${product.imageUrl})`;
+  if (product.imageUrl) {
+    image.classList.add('has-uploaded-image');
+    image.style.backgroundImage = `url(${product.imageUrl})`;
+  }
   image.innerHTML = `<span>${product.id}</span><div class="shape"></div><b>${product.name.toUpperCase()}</b>`;
   const title = document.createElement('h2');
   title.textContent = product.name;

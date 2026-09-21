@@ -12,12 +12,14 @@
   <header class="site-header">
     <a class="logo" href="dashboard.html"><img src="Images/MORVEN.png" alt="MORVEN"></a>
     <nav class="desktop-nav"><a href="dashboard.html">Home</a><a href="#products">Collection</a><a href="orders.html">Orders</a><a href="dashboard.html#products">Verify a piece</a></nav>
+    <button class="menu-button" type="button" aria-label="Open navigation" aria-expanded="false"><span></span><span></span></button>
     <div class="account-actions">
       <a class="auth-link" href="login.html">Login</a>
       <a class="auth-button" href="signup.html">Sign up</a>
       <button class="cart-link" type="button" aria-controls="cart" aria-expanded="false"><span>Cart</span><b class="cart-count">0</b></button>
     </div>
   </header>
+  <nav class="mobile-nav" aria-label="Mobile navigation"><a href="dashboard.html">Home</a><a href="dashboard.html#products">Collection</a><a href="orders.html">Orders</a><a href="dashboard.html#products">Verify a piece</a></nav>
   <main>
     <section class="shop-hero"><div><p class="kicker blue">Foundation series / 01</p><h1>The pieces<br><em>that stay.</em></h1><p>Considered essentials designed to become part of your everyday archive.</p></div><div class="shop-number">MM<br><span>26</span></div></section>
     <section class="shop-grid" id="products">
@@ -36,11 +38,11 @@
       <input class="checkout-email-input" id="checkout-email" type="email" autocomplete="email" placeholder="you@example.com">
       <fieldset class="delivery-details">
         <legend>Delivery details</legend>
-        <input id="delivery-name" type="text" autocomplete="name" placeholder="Name">
-        <input id="delivery-city" type="text" autocomplete="address-level2" placeholder="City">
-        <input id="delivery-street" type="text" autocomplete="street-address" placeholder="Street address">
-        <input id="delivery-house" type="text" autocomplete="address-line2" placeholder="House address / number">
-        <input id="delivery-phone" type="tel" autocomplete="tel" placeholder="Phone number">
+        <input id="delivery-name" type="text" autocomplete="name" placeholder="Name" required>
+        <input id="delivery-city" type="text" autocomplete="address-level2" placeholder="City" required>
+        <input id="delivery-street" type="text" autocomplete="street-address" placeholder="Street address" required>
+        <input id="delivery-house" type="text" autocomplete="address-line2" placeholder="House address / number" required>
+        <input id="delivery-phone" type="tel" autocomplete="tel" placeholder="Phone number" required>
         <textarea id="delivery-comment" rows="2" placeholder="Special comment"></textarea>
       </fieldset>
       <p class="checkout-status" role="status" aria-live="polite"></p>

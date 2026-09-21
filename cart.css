@@ -47,3 +47,5 @@
 .payment-error h1 em { color:#a73d38; }
 @media (max-width:600px) { .payment-page { padding:16px; }.payment-result { padding:42px 25px 34px; }.payment-result h1 { font-size:52px; }.payment-back { width:100%; } }
 @media (max-width:760px) { .dashboard-page .cart-panel { right:16px; top:70px; } }
+.dashboard-page .cart-panel { scrollbar-width:thin; }.dashboard-page .cart-link { touch-action:none; }
+@media (max-width:760px) { .dashboard-page .cart-link { bottom:20px; cursor:grab; position:fixed; right:20px; z-index:20; }.dashboard-page .cart-link:active { cursor:grabbing; }.dashboard-page .cart-panel { bottom:20px; max-height:calc(100vh - 110px); overflow-y:auto; right:16px; top:auto; } }
