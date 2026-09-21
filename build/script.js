@@ -1,15 +1,6 @@
 const menuButton = document.querySelector('.menu-button');
 const mobileNav = document.querySelector('.mobile-nav');
 
-if (localStorage.getItem('morvenUser')) {
-  document.querySelectorAll('.account-actions').forEach((actions) => {
-    actions.querySelector('.auth-link')?.remove();
-    actions.querySelector('.auth-button')?.remove();
-    const cartLink = actions.querySelector('.cart-link');
-    if (cartLink) cartLink.style.display = 'inline-flex';
-  });
-}
-
 menuButton?.addEventListener('click', () => {
   const isOpen = mobileNav.classList.toggle('open');
   menuButton.setAttribute('aria-expanded', String(isOpen));

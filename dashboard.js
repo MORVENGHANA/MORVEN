@@ -18,9 +18,10 @@ const deliveryFields = {
   comment: document.querySelector('#delivery-comment'),
 };
 const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
+let logoutButton;
 
 async function showAdminControlForAuthorizedUser() {
-  const [{ initializeApp }, { getAuth, onAuthStateChanged }] = await Promise.all([
+  const [{ initializeApp }, { getAuth, onAuthStateChanged, signOut }] = await Promise.all([
     import('https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js'),
   ]);
@@ -33,6 +34,16 @@ async function showAdminControlForAuthorizedUser() {
     appId: '1:133394499575:web:d571d789aa23d6e0c1d0f2',
   });
   onAuthStateChanged(getAuth(firebaseApp), (user) => {
+    document.querySelectorAll('.account-actions').forEach((actions) => {
+      actions.querySelector('.auth-link')?.style.setProperty('display', user ? 'none' : 'inline');
+      actions.querySelector('.auth-button')?.style.setProperty('display', user ? 'none' : 'inline-flex');
+      actions.querySelector('.cart-link')?.style.setProperty('display', 'inline-flex');
+    });
+    if (user && !logoutButton) createLogoutButton(getAuth(firebaseApp), signOut);
+    if (!user && logoutButton) {
+      logoutButton.remove();
+      logoutButton = null;
+    }
     if (user?.email?.toLowerCase() !== ADMIN_EMAIL) return;
     document.querySelectorAll('.account-actions').forEach((actions) => {
       if (actions.querySelector('.admin-link')) return;
@@ -42,6 +53,21 @@ async function showAdminControlForAuthorizedUser() {
       link.textContent = 'Admin';
       actions.insertBefore(link, actions.querySelector('.cart-link'));
     });
+  });
+}
+
+function createLogoutButton(auth, signOut) {
+  logoutButton = document.createElement('button');
+  logoutButton.className = 'logout-button';
+  logoutButton.type = 'button';
+  logoutButton.setAttribute('aria-label', 'Log out of MORVEN');
+  logoutButton.innerHTML = '<span>Log out</span><b aria-hidden="true">↗</b>';
+  document.body.append(logoutButton);
+  logoutButton.addEventListener('click', async () => {
+    logoutButton.disabled = true;
+    await signOut(auth);
+    localStorage.removeItem('morvenUser');
+    window.location.href = 'dashboard.html';
   });
 }
 
@@ -125,31 +151,3 @@ bindAddButtons();
 document.addEventListener('catalog:updated', bindAddButtons);
 renderCart();
 
-const logoutButton = document.createElement('button');
-logoutButton.className = 'logout-button';
-logoutButton.type = 'button';
-logoutButton.setAttribute('aria-label', 'Log out of MORVEN');
-logoutButton.innerHTML = '<span>Log out</span><b aria-hidden="true">↗</b>';
-document.body.append(logoutButton);
-
-logoutButton.addEventListener('click', async () => {
-  logoutButton.disabled = true;
-  try {
-    const [{ initializeApp }, { getAuth, signOut }] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js'),
-    ]);
-    const firebaseApp = initializeApp({
-      apiKey: 'AIzaSyA55H9jGrGN5BYB619fxIZYfmFccl71jlA',
-      authDomain: 'morven-1420a.firebaseapp.com',
-      projectId: 'morven-1420a',
-      storageBucket: 'morven-1420a.firebasestorage.app',
-      messagingSenderId: '133394499575',
-      appId: '1:133394499575:web:d571d789aa23d6e0c1d0f2',
-    });
-    await signOut(getAuth(firebaseApp));
-  } finally {
-    localStorage.removeItem('morvenUser');
-    window.location.href = 'dashboard.html';
-  }
-});
