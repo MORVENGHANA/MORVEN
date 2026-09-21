@@ -5,11 +5,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 const app = express();
 const port = process.env.PORT || 4000;
 const demoCodes = new Map([["MVN24001", { product: "Studio Overshirt", status: "active", scans: 0 }]]);
+const products = new Map([
+  ["Studio Overshirt", 148],
+  ["Form Knit Polo", 118],
+  ["Transit Trouser", 128],
+]);
+const adminEmail = (process.env.ADMIN_EMAIL || "fotsiemmanuel397@gmail.com").toLowerCase();
 
 app.use(cors({ origin: process.env.STOREFRONT_ORIGIN || "http://localhost:3000" }));
 app.use(express.json());
@@ -21,11 +28,173 @@ const firestore = serviceAccountPath && fs.existsSync(serviceAccountPath)
   ? getFirestore(getApps().length ? getApps()[0] : initializeApp({ credential: cert(JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"))) }))
   : null;
 
+const firebaseAuth = firestore ? getAuth() : null;
+
 function cleanCode(value = "") {
   return value.replace(/[^a-z0-9]/gi, "").toUpperCase();
 }
 
+function productRecord(id, data) {
+  return { id, ...data, price: Number(data.price), active: data.active !== false };
+}
+
+async function getProducts() {
+  const defaults = [...products].map(([name, price], index) => productRecord(String(index + 1), { name, price, imageUrl: "", description: "MORVEN essential" }));
+  if (!firestore) return defaults;
+  try {
+    const snapshot = await firestore.collection("products").where("active", "!=", false).get();
+    return snapshot.empty ? defaults : snapshot.docs.map((doc) => productRecord(doc.id, doc.data()));
+  } catch (error) {
+    console.error("Product catalog unavailable.");
+    return defaults;
+  }
+}
+
+async function requireAdmin(request, response, next) {
+  if (!firebaseAuth) return response.status(503).json({ message: "Admin services are not configured." });
+  const token = request.headers.authorization?.startsWith("Bearer ") ? request.headers.authorization.slice(7) : "";
+  if (!token) return response.status(401).json({ message: "Sign in as an administrator." });
+  try {
+    const decoded = await firebaseAuth.verifyIdToken(token);
+    if (decoded.email?.toLowerCase() !== adminEmail) return response.status(403).json({ message: "Administrator access is required." });
+    request.admin = decoded;
+    return next();
+  } catch {
+    return response.status(401).json({ message: "Your session has expired. Sign in again." });
+  }
+}
+
 app.get("/health", (_request, response) => response.json({ service: "morven-verification", ok: true }));
+
+app.get("/api/products", async (_request, response) => response.json({ products: await getProducts() }));
+
+app.get("/api/admin/products", requireAdmin, async (_request, response) => {
+  if (!firestore) return response.json({ products: await getProducts() });
+  try {
+    const snapshot = await firestore.collection("products").orderBy("createdAt", "desc").get();
+    return response.json({ products: snapshot.docs.map((doc) => productRecord(doc.id, doc.data())) });
+  } catch (error) {
+    console.error("Product database unavailable.");
+    return response.status(503).json({ message: "Product management is temporarily unavailable. Enable Firestore to manage products." });
+  }
+});
+
+app.post("/api/admin/products", requireAdmin, async (request, response) => {
+  const name = String(request.body?.name || "").trim();
+  const price = Number(request.body?.price);
+  const imageUrl = String(request.body?.imageUrl || "").trim();
+  const description = String(request.body?.description || "").trim();
+  if (!name || !Number.isFinite(price) || price <= 0) return response.status(400).json({ message: "Product name and a positive price are required." });
+  if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
+  const reference = await firestore.collection("products").add({ name, price, imageUrl, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  return response.status(201).json({ product: productRecord(reference.id, { name, price, imageUrl, description, active: true }) });
+});
+
+app.delete("/api/admin/products/:id", requireAdmin, async (request, response) => {
+  if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
+  await firestore.collection("products").doc(request.params.id).update({ active: false, updatedAt: FieldValue.serverTimestamp() });
+  return response.status(204).end();
+});
+
+app.get("/api/admin/users", requireAdmin, async (_request, response) => {
+  if (!firebaseAuth) return response.status(503).json({ message: "User database is not configured." });
+  const users = [];
+  let page;
+  do {
+    page = await firebaseAuth.listUsers(1000, page?.pageToken);
+    users.push(...page.users.map((user) => ({ id: user.uid, name: user.displayName || "", email: user.email || "", phone: user.phoneNumber || "", createdAt: user.metadata.creationTime || "" })));
+  } while (page.pageToken);
+  return response.json({ users });
+});
+
+app.get("/api/admin/orders", requireAdmin, async (_request, response) => {
+  if (!firestore) return response.json({ orders: [] });
+  try {
+    const snapshot = await firestore.collection("orders").orderBy("createdAt", "desc").get();
+    return response.json({ orders: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+  } catch (error) {
+    console.error("Order database unavailable.");
+    return response.status(503).json({ message: "Order management is temporarily unavailable. Enable Firestore to view orders." });
+  }
+});
+
+app.post("/api/payments/paystack/initialize", async (request, response) => {
+  const email = String(request.body?.email || "").trim();
+  const items = Array.isArray(request.body?.items) ? request.body.items : [];
+  const delivery = request.body?.delivery || {};
+  const requiredDeliveryFields = ["name", "city", "streetAddress", "houseAddress", "phone"];
+  const hasDeliveryDetails = requiredDeliveryFields.every((field) => String(delivery[field] || "").trim());
+  if (!/^\S+@\S+\.\S+$/.test(email) || !items.length || !hasDeliveryDetails) {
+    return response.status(400).json({ message: "A valid email, delivery details, and at least one cart item are required." });
+  }
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    return response.status(503).json({ message: "Paystack is not configured on the server yet." });
+  }
+
+  const catalog = await getProducts();
+  const lineItems = items.map((item) => {
+    const product = catalog.find((entry) => entry.name === String(item.product || ""));
+    return product && Number(item.price) === product.price ? { product: product.name, price: product.price } : null;
+  });
+  if (lineItems.some((item) => !item)) {
+    return response.status(400).json({ message: "One or more cart items are invalid." });
+  }
+
+  const amount = lineItems.reduce((total, item) => total + item.price, 0) * 100;
+  const callbackUrl = process.env.PAYSTACK_CALLBACK_URL || `${process.env.STOREFRONT_ORIGIN || "http://localhost:3000"}/payment-success.html`;
+  try {
+    const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
+      body: JSON.stringify({
+        amount,
+        callback_url: callbackUrl,
+        currency: "GHS",
+        email,
+        metadata: { delivery, items: lineItems },
+      }),
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const payload = await paystackResponse.json();
+    if (!paystackResponse.ok || !payload.status) {
+      return response.status(502).json({ message: payload.message || "Paystack could not start the payment." });
+    }
+    if (firestore) {
+      await firestore.collection("orders").doc(payload.data.reference).set({
+        email,
+        delivery,
+        items: lineItems,
+        amount: amount / 100,
+        currency: "GHS",
+        status: "pending",
+        reference: payload.data.reference,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    return response.json({ authorizationUrl: payload.data.authorization_url, reference: payload.data.reference });
+  } catch (error) {
+    console.error("Paystack initialization failed", error);
+    return response.status(502).json({ message: "Payment service is temporarily unavailable." });
+  }
+});
+
+app.get("/api/payments/paystack/verify/:reference", async (request, response) => {
+  if (!process.env.PAYSTACK_SECRET_KEY) return response.status(503).json({ message: "Paystack is not configured on the server yet." });
+  try {
+    const paystackResponse = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(request.params.reference)}`, {
+      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+    });
+    const payload = await paystackResponse.json();
+    if (!paystackResponse.ok || !payload.status) return response.status(502).json({ message: payload.message || "Unable to verify payment." });
+    if (firestore) await firestore.collection("orders").doc(payload.data.reference).set({ status: payload.data.status, paidAt: FieldValue.serverTimestamp() }, { merge: true });
+    return response.json({ status: payload.data.status, reference: payload.data.reference, amount: payload.data.amount, currency: payload.data.currency });
+  } catch (error) {
+    console.error("Paystack verification failed", error);
+    return response.status(502).json({ message: "Payment verification is temporarily unavailable." });
+  }
+});
 
 app.post("/api/verify", async (request, response) => {
   const code = cleanCode(request.body?.code);

@@ -39,7 +39,8 @@ authForm?.addEventListener('submit', async (event) => {
       message.textContent = 'Welcome back to MORVEN.';
     }
     localStorage.setItem('morvenUser', 'signed-in');
-    setTimeout(() => { window.location.href = 'dashboard.html'; }, 650);
+    const destination = email.toLowerCase() === 'fotsiemmanuel397@gmail.com' ? 'admin.html' : 'dashboard.html';
+    setTimeout(() => { window.location.href = destination; }, 650);
   } catch (error) {
     const messages = {
       'auth/email-already-in-use': 'An account already exists with this email.',
