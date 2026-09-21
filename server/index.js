@@ -116,7 +116,10 @@ async function requireUser(request, response, next) {
   }
 }
 
-app.get("/health", (_request, response) => response.json({ service: "morven-verification", ok: true }));
+app.get("/health", (_request, response) => {
+  response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  return response.json({ service: "morven-verification", ok: true, uptime: process.uptime() });
+});
 
 app.post("/api/payments/paystack/webhook", async (request, response) => {
   if (!process.env.PAYSTACK_SECRET_KEY) return response.status(503).json({ message: "Payment webhook is not configured." });
@@ -421,4 +424,22 @@ app.use(express.static(sourceRoot));
 app.get("/", (_request, response) => response.sendFile(path.join(staticRoot, "index.html")));
 app.get("/admin", (_request, response) => response.sendFile(path.join(staticRoot, "admin.html")));
 
-app.listen(port, () => console.log(`MORVEN verification API listening on ${port}`));
+app.listen(port, () => {
+  console.log(`MORVEN verification API listening on ${port}`);
+  const keepAliveEnabled = String(process.env.KEEP_ALIVE_ENABLED).toLowerCase() === "true";
+  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
+  const pingInterval = Math.max(60000, Number(process.env.PING_INTERVAL) || 300000);
+  if (!keepAliveEnabled || !keepAliveUrl) return;
+
+  const ping = async () => {
+    try {
+      const response = await fetch(`${keepAliveUrl.replace(/\/$/, "")}/health`, { headers: { "User-Agent": "MORVEN-keep-alive" } });
+      console.log(`Keep-alive ping: ${response.status}`);
+    } catch (error) {
+      console.error(`Keep-alive ping failed: ${error.message}`);
+    }
+  };
+  console.log(`Keep-alive enabled: ${keepAliveUrl}/health every ${pingInterval}ms.`);
+  ping();
+  setInterval(ping, pingInterval).unref();
+});
