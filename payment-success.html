@@ -8,32 +8,63 @@
   <link rel="stylesheet" href="cart.css">
 </head>
 <body class="payment-page">
-  <main class="payment-result" aria-live="polite">
-    <p class="kicker blue">MORVEN / Payment</p>
-    <h1 id="payment-title">Confirming your payment.</h1>
+  <main class="payment-result payment-pending" aria-live="polite">
+    <div class="payment-mark" aria-hidden="true"><span>✓</span></div>
+    <p class="payment-eyebrow">MORVEN / Order received</p>
+    <h1 id="payment-title">Confirming<br><em>your payment.</em></h1>
     <p id="payment-message">We are checking your Paystack transaction.</p>
-    <a class="payment-back" href="dashboard.html">Return to collection <span>↗</span></a>
+    <div class="payment-details" hidden><span>Amount</span><strong id="payment-amount"></strong><span>Reference</span><strong id="payment-reference"></strong></div>
+    <p class="payment-countdown" hidden>Returning to your collection in <strong id="countdown">5</strong> seconds.</p>
+    <a class="payment-back" href="dashboard.html">Continue shopping <span>↗</span></a>
   </main>
   <script>
     const apiUrl = window.MORVEN_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4000' : window.location.origin);
     const reference = new URLSearchParams(window.location.search).get('reference');
+    const result = document.querySelector('.payment-result');
     const title = document.querySelector('#payment-title');
     const message = document.querySelector('#payment-message');
+    const details = document.querySelector('.payment-details');
+    const amount = document.querySelector('#payment-amount');
+    const referenceValue = document.querySelector('#payment-reference');
+    const countdownMessage = document.querySelector('.payment-countdown');
+    const countdown = document.querySelector('#countdown');
     if (!reference) {
-      title.textContent = 'Payment reference missing.';
-      message.textContent = 'Return to the collection and try checkout again.';
+      result.className = 'payment-result payment-error';
+      title.innerHTML = 'Payment<br><em>not found.</em>';
+      message.textContent = 'We could not find a payment reference. Return to the collection and try again.';
     } else {
       fetch(`${apiUrl}/api/payments/paystack/verify/${encodeURIComponent(reference)}`)
         .then(async (response) => {
-          const data = await response.json();
+          const text = await response.text();
+          const data = text ? JSON.parse(text) : {};
           if (!response.ok) throw new Error(data.message || 'Unable to verify payment.');
-          if (data.status !== 'success') throw new Error(`Payment status: ${data.status}.`);
-          title.textContent = 'Payment confirmed.';
-          message.textContent = `Reference ${data.reference}. Thank you for choosing MORVEN.`;
+          if (data.status !== 'success') {
+            result.className = 'payment-result payment-error';
+            title.innerHTML = 'Payment<br><em>needs attention.</em>';
+            message.textContent = `The transaction status is ${data.status}. You can return to the collection and try again.`;
+            return;
+          }
+          result.className = 'payment-result payment-success';
+          title.innerHTML = 'Payment<br><em>completed.</em>';
+          message.textContent = 'Your MORVEN order is confirmed. We will prepare it for delivery.';
+          amount.textContent = `GH₵${Number(data.amount) / 100}`;
+          referenceValue.textContent = data.reference;
+          details.hidden = false;
+          countdownMessage.hidden = false;
           localStorage.removeItem('morvenCart');
+          let seconds = 5;
+          const timer = setInterval(() => {
+            seconds -= 1;
+            countdown.textContent = seconds;
+            if (seconds <= 0) {
+              clearInterval(timer);
+              window.location.href = 'dashboard.html';
+            }
+          }, 1000);
         })
         .catch((error) => {
-          title.textContent = 'Payment needs attention.';
+          result.className = 'payment-result payment-error';
+          title.innerHTML = 'Payment<br><em>needs attention.</em>';
           message.textContent = error.message;
         });
     }

@@ -15,6 +15,7 @@ const files = [
   "catalog.js",
   "dashboard.css",
   "dashboard.html",
+  "dashboard-auth.js",
   "dashboard.js",
   "index.html",
   "login.html",

@@ -25,9 +25,26 @@
 .dashboard-page .delivery-details input:focus,.dashboard-page .delivery-details textarea:focus { border-color:var(--blue); outline:2px solid rgba(22,76,255,.15); }
 .dashboard-page .checkout-status { color:#a73d38; font-family:'Manrope',sans-serif; font-size:11px; line-height:1.4; margin:10px 0 0; }
 .dashboard-page .cart-confirmation { color:#12664a!important; line-height:1.5; }
-.payment-page { align-items:center; display:flex; min-height:100vh; padding:24px; }
-.payment-result { background:var(--white); border:1px solid var(--line); border-radius:18px; box-shadow:0 22px 55px rgba(8,27,67,.12); margin:auto; max-width:560px; padding:50px; width:100%; }
-.payment-result h1 { color:var(--navy); font-size:clamp(42px,7vw,72px); line-height:.88; margin:0 0 24px; }
-.payment-result > p:not(.kicker) { color:var(--muted); font-size:15px; line-height:1.55; }
-.payment-back { background:var(--blue); color:#fff; display:inline-flex; font-family:'Space Grotesk',sans-serif; font-size:11px; font-weight:600; justify-content:space-between; margin-top:20px; padding:16px; text-transform:uppercase; width:230px; }
+.payment-page { align-items:center; background:var(--navy); display:flex; min-height:100vh; overflow:hidden; padding:24px; position:relative; }
+.payment-page::before,.payment-page::after { border:1px solid rgba(217,255,67,.45); border-radius:50%; content:''; position:absolute; }
+.payment-page::before { height:clamp(280px,42vw,620px); left:-12vw; top:-18vw; width:clamp(280px,42vw,620px); }
+.payment-page::after { background:var(--blue); bottom:-180px; height:340px; right:-80px; width:340px; }
+.payment-result { background:var(--white); border-radius:28px; box-shadow:0 28px 80px rgba(0,0,0,.3); margin:auto; max-width:620px; overflow:hidden; padding:52px clamp(28px,7vw,72px) 58px; position:relative; width:100%; z-index:1; }
+.payment-result::before { background:var(--acid); content:''; height:12px; left:0; position:absolute; right:0; top:0; }
+.payment-mark { align-items:center; background:var(--acid); border:10px solid var(--white); border-radius:50%; box-shadow:0 0 0 1px var(--navy); color:var(--navy); display:flex; font-size:42px; font-weight:700; height:92px; justify-content:center; margin-bottom:28px; transform:rotate(-8deg); width:92px; }
+.payment-eyebrow { color:var(--blue); font-family:'Space Grotesk',sans-serif; font-size:11px; font-weight:700; letter-spacing:.12em; margin:0 0 22px; text-transform:uppercase; }
+.payment-result h1 { color:var(--navy); font-size:clamp(50px,8vw,88px); line-height:.82; margin:0 0 28px; }
+.payment-result h1 em { color:var(--blue); font-style:normal; }
+.payment-result > p:not(.payment-eyebrow) { color:var(--muted); font-size:16px; line-height:1.55; max-width:430px; }
+.payment-details { border-bottom:1px solid var(--line); border-top:1px solid var(--line); display:grid; gap:9px 20px; grid-template-columns:1fr 2fr; margin:28px 0 4px; padding:18px 0; }
+.payment-details span { color:var(--muted); font-family:'Space Grotesk',sans-serif; font-size:10px; font-weight:600; text-transform:uppercase; }
+.payment-details strong { color:var(--navy); font-family:'Manrope',sans-serif; font-size:13px; overflow-wrap:anywhere; }
+.payment-countdown { color:var(--navy)!important; font-family:'Space Grotesk',sans-serif; font-size:12px!important; margin:22px 0 0; }
+.payment-countdown strong { color:var(--blue); font-size:18px; }
+.payment-back { align-items:center; background:var(--blue); color:#fff; display:inline-flex; font-family:'Space Grotesk',sans-serif; font-size:11px; font-weight:700; justify-content:space-between; margin-top:25px; padding:17px 19px; text-transform:uppercase; transition:background .2s,transform .2s; width:230px; }
+.payment-back:hover { background:var(--navy); transform:translateY(-3px); }
+.payment-error .payment-mark { background:#ffb4a8; color:#7d241c; }
+.payment-error .payment-eyebrow { color:#a73d38; }
+.payment-error h1 em { color:#a73d38; }
+@media (max-width:600px) { .payment-page { padding:16px; }.payment-result { padding:42px 25px 34px; }.payment-result h1 { font-size:52px; }.payment-back { width:100%; } }
 @media (max-width:760px) { .dashboard-page .cart-panel { right:16px; top:70px; } }

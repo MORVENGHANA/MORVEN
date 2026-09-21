@@ -18,6 +18,7 @@ const products = new Map([
   ["Transit Trouser", 128],
 ]);
 const adminEmail = (process.env.ADMIN_EMAIL || "fotsiemmanuel397@gmail.com").toLowerCase();
+const pendingOrders = new Map();
 
 app.use(cors({ origin: process.env.STOREFRONT_ORIGIN || "http://localhost:3000" }));
 app.use(express.json({ verify: (request, _response, buffer) => { request.rawBody = buffer; } }));
@@ -70,6 +71,7 @@ async function requireAdmin(request, response, next) {
 app.get("/health", (_request, response) => response.json({ service: "morven-verification", ok: true }));
 
 app.post("/api/payments/paystack/webhook", async (request, response) => {
+  if (!process.env.PAYSTACK_SECRET_KEY) return response.status(503).json({ message: "Payment webhook is not configured." });
   const signature = request.headers["x-paystack-signature"];
   const rawBody = request.rawBody || Buffer.from(JSON.stringify(request.body));
   const expectedSignature = crypto.createHmac("sha512", process.env.PAYSTACK_SECRET_KEY || "").update(rawBody).digest("hex");
@@ -81,15 +83,19 @@ app.post("/api/payments/paystack/webhook", async (request, response) => {
 
   const event = request.body;
   const transaction = event?.data;
-  if (event?.event === "charge.success" && transaction?.reference && firestore) {
+  if (event?.event === "charge.success" && transaction?.reference) {
     const orderReference = String(transaction.reference);
-    const orderRef = firestore.collection("orders").doc(orderReference);
-    const order = await orderRef.get();
-    const expectedAmount = order.exists ? Number(order.data().amount) * 100 : null;
-    if (expectedAmount !== null && Number(transaction.amount) !== expectedAmount) {
+    const storedOrder = pendingOrders.get(orderReference);
+    const orderRef = firestore?.collection("orders").doc(orderReference);
+    const order = orderRef ? await orderRef.get() : null;
+    const orderData = order?.exists ? order.data() : storedOrder;
+    const expectedAmount = orderData ? Number(orderData.amount) * 100 : null;
+    if (!orderData || Number(transaction.amount) !== expectedAmount || transaction.currency !== "GHS") {
       return response.status(400).json({ message: "Webhook amount does not match the order." });
     }
-    await orderRef.set({ status: "success", paidAt: FieldValue.serverTimestamp(), paymentChannel: transaction.channel || null }, { merge: true });
+    const update = { status: "success", paidAt: new Date().toISOString(), paymentChannel: transaction.channel || null };
+    pendingOrders.set(orderReference, { ...orderData, ...update });
+    if (orderRef) await orderRef.set({ ...update, paidAt: FieldValue.serverTimestamp() }, { merge: true });
   }
   return response.sendStatus(200);
 });
@@ -150,10 +156,8 @@ app.post("/api/payments/paystack/initialize", async (request, response) => {
   const email = String(request.body?.email || "").trim();
   const items = Array.isArray(request.body?.items) ? request.body.items : [];
   const delivery = request.body?.delivery || {};
-  const requiredDeliveryFields = ["name", "city", "streetAddress", "houseAddress", "phone"];
-  const hasDeliveryDetails = requiredDeliveryFields.every((field) => String(delivery[field] || "").trim());
-  if (!/^\S+@\S+\.\S+$/.test(email) || !items.length || !hasDeliveryDetails) {
-    return response.status(400).json({ message: "A valid email, delivery details, and at least one cart item are required." });
+  if (!/^\S+@\S+\.\S+$/.test(email) || !items.length) {
+    return response.status(400).json({ message: "A valid email and at least one cart item are required." });
   }
   if (!process.env.PAYSTACK_SECRET_KEY) {
     return response.status(503).json({ message: "Paystack is not configured on the server yet." });
@@ -189,8 +193,7 @@ app.post("/api/payments/paystack/initialize", async (request, response) => {
     if (!paystackResponse.ok || !payload.status) {
       return response.status(502).json({ message: payload.message || "Paystack could not start the payment." });
     }
-    if (firestore) {
-      await firestore.collection("orders").doc(payload.data.reference).set({
+    const orderData = {
         email,
         delivery,
         items: lineItems,
@@ -198,8 +201,10 @@ app.post("/api/payments/paystack/initialize", async (request, response) => {
         currency: "GHS",
         status: "pending",
         reference: payload.data.reference,
-        createdAt: FieldValue.serverTimestamp(),
-      });
+      };
+    pendingOrders.set(payload.data.reference, orderData);
+    if (firestore) {
+      await firestore.collection("orders").doc(payload.data.reference).set({ ...orderData, createdAt: FieldValue.serverTimestamp() });
     }
     return response.json({ accessCode: payload.data.access_code, authorizationUrl: payload.data.authorization_url, reference: payload.data.reference });
   } catch (error) {
@@ -216,14 +221,15 @@ app.get("/api/payments/paystack/verify/:reference", async (request, response) =>
     });
     const payload = await paystackResponse.json();
     if (!paystackResponse.ok || !payload.status) return response.status(502).json({ message: payload.message || "Unable to verify payment." });
-    if (payload.data.status === "success" && firestore) {
-      const order = await firestore.collection("orders").doc(payload.data.reference).get();
-      const expectedAmount = order.exists ? Number(order.data().amount) * 100 : null;
-      if (expectedAmount !== null && Number(payload.data.amount) !== expectedAmount) {
-        return response.status(409).json({ message: "Payment amount could not be verified." });
-      }
+    const storedOrder = pendingOrders.get(payload.data.reference);
+    const order = firestore ? await firestore.collection("orders").doc(payload.data.reference).get() : null;
+    const orderData = order?.exists ? order.data() : storedOrder;
+    if (payload.data.status === "success" && (!orderData || Number(payload.data.amount) !== Number(orderData.amount) * 100 || payload.data.currency !== "GHS")) {
+      return response.status(409).json({ message: "Payment amount could not be verified." });
     }
-    if (firestore) await firestore.collection("orders").doc(payload.data.reference).set({ status: payload.data.status, paidAt: FieldValue.serverTimestamp() }, { merge: true });
+    const update = { status: payload.data.status, paidAt: payload.data.status === "success" ? new Date().toISOString() : null };
+    pendingOrders.set(payload.data.reference, { ...(orderData || {}), ...update });
+    if (firestore) await firestore.collection("orders").doc(payload.data.reference).set({ ...update, paidAt: payload.data.status === "success" ? FieldValue.serverTimestamp() : null }, { merge: true });
     return response.json({ status: payload.data.status, reference: payload.data.reference, amount: payload.data.amount, currency: payload.data.currency });
   } catch (error) {
     console.error("Paystack verification failed", error);
