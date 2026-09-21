@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import fs from "node:fs";
+import multer from "multer";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -21,6 +22,15 @@ const products = new Map([
 ]);
 const adminEmail = (process.env.ADMIN_EMAIL || "fotsiemmanuel397@gmail.com").toLowerCase();
 const pendingOrders = new Map();
+const productImageUpload = multer({
+  limits: { fileSize: 750 * 1024 },
+  storage: multer.memoryStorage(),
+  fileFilter: (_request, file, callback) => callback(null, ["image/jpeg", "image/png"].includes(file.mimetype)),
+});
+const parseProductImage = (request, response, next) => productImageUpload.single("image")(request, response, (error) => {
+  if (error) return response.status(400).json({ message: error.code === "LIMIT_FILE_SIZE" ? "Product pictures must be 750 KB or smaller." : "Upload a JPEG, JPG, or PNG product picture." });
+  return next();
+});
 
 app.use(cors({ origin: process.env.STOREFRONT_ORIGIN || "http://localhost:3000" }));
 app.use(express.json({ verify: (request, _response, buffer) => { request.rawBody = buffer; } }));
@@ -28,9 +38,18 @@ app.use(express.json({ verify: (request, _response, buffer) => { request.rawBody
 const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_FILE
   ? path.resolve(path.dirname(fileURLToPath(import.meta.url)), process.env.FIREBASE_SERVICE_ACCOUNT_FILE)
   : null;
-const firestore = serviceAccountPath && fs.existsSync(serviceAccountPath)
-  ? getFirestore(getApps().length ? getApps()[0] : initializeApp({ credential: cert(JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"))) }))
-  : null;
+let firebaseApp = null;
+try {
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+    : serviceAccountPath && fs.existsSync(serviceAccountPath)
+      ? JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"))
+      : null;
+  if (serviceAccount) firebaseApp = getApps().length ? getApps()[0] : initializeApp({ credential: cert(serviceAccount) });
+} catch {
+  console.error("Firebase Admin credentials are invalid.");
+}
+const firestore = firebaseApp ? getFirestore(firebaseApp) : null;
 
 const firebaseAuth = firestore ? getAuth() : null;
 const staticRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "build");
@@ -133,19 +152,20 @@ app.get("/api/admin/products", requireAdmin, async (_request, response) => {
   if (!firestore) return response.json({ products: await getProducts() });
   try {
     const snapshot = await firestore.collection("products").orderBy("createdAt", "desc").get();
-    return response.json({ products: snapshot.docs.map((doc) => productRecord(doc.id, doc.data())) });
+    return response.json({ products: snapshot.empty ? await getProducts() : snapshot.docs.map((doc) => productRecord(doc.id, doc.data())) });
   } catch (error) {
     console.error("Product database unavailable.");
     return response.status(503).json({ message: "Product management is temporarily unavailable. Enable Firestore to manage products." });
   }
 });
 
-app.post("/api/admin/products", requireAdmin, async (request, response) => {
+app.post("/api/admin/products", requireAdmin, parseProductImage, async (request, response) => {
   const name = String(request.body?.name || "").trim();
   const price = Number(request.body?.price);
-  const imageUrl = String(request.body?.imageUrl || "").trim();
+  const imageUrl = request.file ? `data:${request.file.mimetype};base64,${request.file.buffer.toString("base64")}` : "";
   const description = String(request.body?.description || "").trim();
   if (!name || !Number.isFinite(price) || price <= 0) return response.status(400).json({ message: "Product name and a positive price are required." });
+  if (!request.file) return response.status(400).json({ message: "Upload a JPEG, JPG, or PNG product picture." });
   if (!firestore) return response.status(503).json({ message: "Product database is not configured." });
   const reference = await firestore.collection("products").add({ name, price, imageUrl, description, active: true, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   return response.status(201).json({ product: productRecord(reference.id, { name, price, imageUrl, description, active: true }) });
@@ -193,13 +213,14 @@ app.post("/api/payments/paystack/initialize", requireUser, async (request, respo
   const catalog = await getProducts();
   const lineItems = items.map((item) => {
     const product = catalog.find((entry) => entry.name === String(item.product || ""));
-    return product && Number(item.price) === product.price ? { product: product.name, price: product.price } : null;
+    const quantity = Number.isInteger(Number(item.quantity)) && Number(item.quantity) > 0 ? Number(item.quantity) : 1;
+    return product && Number(item.price) === product.price ? { product: product.name, price: product.price, quantity } : null;
   });
   if (lineItems.some((item) => !item)) {
     return response.status(400).json({ message: "One or more cart items are invalid." });
   }
 
-  const amount = lineItems.reduce((total, item) => total + item.price, 0) * 100;
+  const amount = lineItems.reduce((total, item) => total + item.price * item.quantity, 0) * 100;
   const callbackUrl = process.env.PAYSTACK_CALLBACK_URL || `${request.protocol}://${request.get("host")}/payment-success.html`;
   const orderId = `MVN-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
   try {

@@ -1,4 +1,10 @@
-const cart = JSON.parse(localStorage.getItem('morvenCart') || '[]');
+const storedCart = JSON.parse(localStorage.getItem('morvenCart') || '[]');
+const cart = storedCart.reduce((items, item) => {
+  const existing = items.find((entry) => entry.product === item.product && Number(entry.price) === Number(item.price));
+  if (existing) existing.quantity += Number(item.quantity) || 1;
+  else items.push({ product: item.product, price: item.price, quantity: Number(item.quantity) || 1 });
+  return items;
+}, []);
 const cartCounts = document.querySelectorAll('.cart-count');
 const cartItems = document.querySelector('.cart-items');
 const cartTotal = document.querySelector('.cart-total strong');
@@ -18,7 +24,7 @@ const deliveryFields = {
   comment: document.querySelector('#delivery-comment'),
 };
 function renderCart() {
-  const count = cart.length;
+  const count = cart.reduce((total, item) => total + item.quantity, 0);
   cartCounts.forEach((counter) => { counter.textContent = count; });
   if (!cartItems || !cartTotal) return;
   if (!count) {
@@ -27,8 +33,8 @@ function renderCart() {
     if (checkoutButton) checkoutButton.disabled = true;
     return;
   }
-  cartItems.innerHTML = cart.map((item) => `<p><span>${item.product}</span><strong>GH₵${item.price}</strong></p>`).join('');
-  cartTotal.textContent = `GH₵${cart.reduce((total, item) => total + Number(item.price), 0)}`;
+  cartItems.innerHTML = cart.map((item, index) => `<div class="cart-item"><div class="cart-item-info"><span>${item.product}</span><strong>GH₵${Number(item.price) * item.quantity}</strong></div><div class="cart-item-controls"><button type="button" class="cart-decrease" data-cart-index="${index}" aria-label="Decrease ${item.product}">−</button><b>${item.quantity}</b><button type="button" class="cart-increase" data-cart-index="${index}" aria-label="Increase ${item.product}">+</button><button type="button" class="cart-remove" data-cart-index="${index}" aria-label="Remove ${item.product}">⌫</button></div></div>`).join('');
+  cartTotal.textContent = `GH₵${cart.reduce((total, item) => total + Number(item.price) * item.quantity, 0)}`;
   if (checkoutButton) checkoutButton.disabled = false;
 }
 
@@ -44,6 +50,17 @@ cartToggle?.addEventListener('click', () => {
 cartClose?.addEventListener('click', () => setCartOpen(false));
 document.addEventListener('click', (event) => {
   if (cartPanel?.classList.contains('open') && !cartPanel.contains(event.target) && !cartToggle?.contains(event.target)) setCartOpen(false);
+});
+cartItems?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-cart-index]');
+  if (!button) return;
+  const index = Number(button.dataset.cartIndex);
+  if (button.classList.contains('cart-increase')) cart[index].quantity += 1;
+  if (button.classList.contains('cart-decrease')) cart[index].quantity = Math.max(0, cart[index].quantity - 1);
+  if (button.classList.contains('cart-remove')) cart[index].quantity = 0;
+  for (let itemIndex = cart.length - 1; itemIndex >= 0; itemIndex -= 1) if (cart[itemIndex].quantity === 0) cart.splice(itemIndex, 1);
+  localStorage.setItem('morvenCart', JSON.stringify(cart));
+  renderCart();
 });
 checkoutButton?.addEventListener('click', async () => {
   const email = checkoutEmail?.value.trim();
@@ -94,7 +111,9 @@ function bindAddButtons() {
     if (button.dataset.cartBound) return;
     button.dataset.cartBound = 'true';
     button.addEventListener('click', () => {
-      cart.push({ product: button.dataset.product, price: button.dataset.price });
+      const existing = cart.find((item) => item.product === button.dataset.product && Number(item.price) === Number(button.dataset.price));
+      if (existing) existing.quantity += 1;
+      else cart.push({ product: button.dataset.product, price: button.dataset.price, quantity: 1 });
       localStorage.setItem('morvenCart', JSON.stringify(cart));
       button.textContent = 'Added to cart ✓';
       renderCart();

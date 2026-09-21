@@ -30,7 +30,7 @@ function renderOrders(orders) {
     return;
   }
   list.innerHTML = orders.map((order) => {
-    const items = (order.items || []).map((item) => `${escapeHtml(item.product)} / GH₵${Number(item.price)}`).join('<br>');
+    const items = (order.items || []).map((item) => `${escapeHtml(item.product)} x${Number(item.quantity) || 1} / GH₵${Number(item.price) * (Number(item.quantity) || 1)}`).join('<br>');
     return `<article class="order-card"><div class="order-card-head"><div><h2>${escapeHtml(order.orderId || order.reference || 'Order')}</h2><p class="order-card-meta">${escapeHtml(dateLabel(order.createdAt))} · ${escapeHtml(order.reference || 'Payment reference pending')}</p></div><span class="order-status">${escapeHtml(order.status || 'pending')}</span></div><div class="order-card-body"><p class="order-items">${items || 'Order details pending'}</p><p class="order-total">GH₵${Number(order.amount || 0)}</p></div></article>`;
   }).join('');
 }

@@ -16,11 +16,11 @@
     <div class="admin-heading"><div><p class="kicker blue">MORVEN / Control room</p><h1>Manage<br><em>the archive.</em></h1></div><button class="admin-signout" type="button">Sign out</button></div>
     <p class="admin-status" role="status" aria-live="polite">Checking administrator access...</p>
     <section class="admin-grid" hidden>
-      <form class="admin-card product-form">
+      <form class="admin-card product-form" enctype="multipart/form-data">
         <p class="kicker blue">Package management</p><h2>Add a piece</h2>
         <label>Product name<input name="name" required placeholder="Studio Overshirt"></label>
         <label>Price in GH₵<input name="price" type="number" min="1" step="1" required placeholder="148"></label>
-        <label>Picture URL<input name="imageUrl" type="url" placeholder="https://..."></label>
+        <label>Product picture<input name="image" type="file" accept="image/jpeg,image/png" required></label>
         <label>Description<textarea name="description" rows="3" placeholder="Heavy cotton / Ink"></textarea></label>
         <button class="admin-action" type="submit">Publish item <span>↗</span></button>
       </form>

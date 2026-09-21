@@ -39,7 +39,7 @@ function setAccountControls(user) {
     logoutButton.addEventListener('click', async () => {
       logoutButton.disabled = true;
       await signOut(auth);
-      window.location.href = 'dashboard.html';
+      window.location.href = 'index.html';
     });
   }
   if (user.email?.toLowerCase() === ADMIN_EMAIL) {

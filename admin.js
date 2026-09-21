@@ -17,7 +17,9 @@ const grid = document.querySelector('.admin-grid');
 let token = '';
 
 async function api(path, options = {}) {
-  const response = await fetch(`${apiUrl}${path}`, { ...options, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options.headers } });
+  const headers = { Authorization: `Bearer ${token}`, ...options.headers };
+  if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const response = await fetch(`${apiUrl}${path}`, { ...options, headers });
   const data = response.status === 204 ? null : await response.json();
   if (!response.ok) throw new Error(data?.message || 'Admin request failed.');
   return data;
@@ -51,8 +53,8 @@ async function loadAdminData() {
 document.querySelector('.product-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  const data = Object.fromEntries(new FormData(form));
-  try { await api('/api/admin/products', { method: 'POST', body: JSON.stringify(data) }); form.reset(); status.textContent = 'Item published to the storefront.'; await loadAdminData(); } catch (error) { status.textContent = error.message; }
+  const data = new FormData(form);
+  try { await api('/api/admin/products', { method: 'POST', body: data }); form.reset(); status.textContent = 'Item published to the storefront.'; await loadAdminData(); } catch (error) { status.textContent = error.message; }
 });
 
 document.querySelector('.admin-signout').addEventListener('click', () => signOut(auth).then(() => { window.location.href = 'login.html'; }));
