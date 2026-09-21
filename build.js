@@ -29,4 +29,5 @@ fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 files.forEach((file) => fs.copyFileSync(path.join(root, file), path.join(output, file)));
 fs.cpSync(path.join(root, "Images"), path.join(output, "Images"), { recursive: true });
+fs.copyFileSync(path.join(root, "_redirects"), path.join(output, "_redirects"));
 console.log(`Built static storefront in ${path.relative(root, output)}`);

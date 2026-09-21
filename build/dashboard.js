@@ -17,6 +17,35 @@ const deliveryFields = {
   phone: document.querySelector('#delivery-phone'),
   comment: document.querySelector('#delivery-comment'),
 };
+const ADMIN_EMAIL = 'fotsiemmanuel397@gmail.com';
+
+async function showAdminControlForAuthorizedUser() {
+  const [{ initializeApp }, { getAuth, onAuthStateChanged }] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js'),
+  ]);
+  const firebaseApp = initializeApp({
+    apiKey: 'AIzaSyA55HjGrGN5BYB619fxIZYfmFccl71A',
+    authDomain: 'morven-1420a.firebaseapp.com',
+    projectId: 'morven-1420a',
+    storageBucket: 'morven-1420a.firebasestorage.app',
+    messagingSenderId: '133394499575',
+    appId: '1:133394499575:web:d571d789aa23d6e0c1d0f2',
+  });
+  onAuthStateChanged(getAuth(firebaseApp), (user) => {
+    if (user?.email?.toLowerCase() !== ADMIN_EMAIL) return;
+    document.querySelectorAll('.account-actions').forEach((actions) => {
+      if (actions.querySelector('.admin-link')) return;
+      const link = document.createElement('a');
+      link.className = 'admin-link';
+      link.href = 'admin.html';
+      link.textContent = 'Admin';
+      actions.insertBefore(link, actions.querySelector('.cart-link'));
+    });
+  });
+}
+
+showAdminControlForAuthorizedUser().catch(() => {});
 
 function renderCart() {
   const count = cart.length;
@@ -121,6 +150,6 @@ logoutButton.addEventListener('click', async () => {
     await signOut(getAuth(firebaseApp));
   } finally {
     localStorage.removeItem('morvenUser');
-    window.location.href = 'login.html';
+    window.location.href = 'dashboard.html';
   }
 });

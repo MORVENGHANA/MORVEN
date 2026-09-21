@@ -64,6 +64,7 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = 'admin-login.html';
     return;
   }
+  document.body.classList.add('admin-authorized');
   token = await user.getIdToken();
   try {
     await loadAdminData();
